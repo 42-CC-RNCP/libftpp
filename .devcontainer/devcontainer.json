@@ -1,11 +1,11 @@
 {
-    "name": "REPLACE_WITH_YOUR_PROJECT_NAME",
+    "name": "libtpp",
     "build": {
         "dockerfile": "Dockerfile"
     },
     "runArgs": [
         "--privileged",
-        "--name=REPLACE_WITH_YOUR_PROJECT_NAME"
+        "--name=libtpp"
     ],
     "customizations": {
         "vscode": {
