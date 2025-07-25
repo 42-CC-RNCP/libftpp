@@ -1,0 +1,30 @@
+{
+    "name": "REPLACE_WITH_YOUR_PROJECT_NAME",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+    "runArgs": [
+        "--privileged",
+        "--name=REPLACE_WITH_YOUR_PROJECT_NAME"
+    ],
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "zsh"
+            },
+            "extensions": [
+                "ms-vscode.cpptools",
+                "elazarcoh.cpp2-syntax",
+                "eamodio.gitlens",
+                "ms-vscode.cmake-tools"
+            ]
+        }
+    },
+    "mounts": [
+        "source=${env:HOME}/.ssh,target=/root/.ssh,type=bind,consistency=cached",
+        "source=${env:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached"
+    ],
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "remoteUser": "root"
+}
