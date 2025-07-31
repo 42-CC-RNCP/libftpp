@@ -1,3 +1,4 @@
+# src/data_structures/CMakeLists.txt
 set(MODULE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CPP2_GEN_DIR ${CMAKE_BINARY_DIR}/cpp2gen/data_structures)
 file(MAKE_DIRECTORY ${CPP2_GEN_DIR})

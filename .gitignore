@@ -35,3 +35,4 @@
 CMakeCache.txt
 **/*/CMakeFiles/
 build/
+.cache/
