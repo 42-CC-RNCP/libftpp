@@ -2,14 +2,54 @@
 #include "pool.hpp"
 
 struct Dummy {
+    static inline int constructorCount = 0;  // C++20 inline static
+
     int a = 0;
     std::string s;
-    Dummy() = default;
-    Dummy(int a, std::string s) : a(a), s(std::move(s)) {}
+
+    Dummy() {
+        ++constructorCount;
+    }
+
+    Dummy(int a, std::string s) : a(a), s(std::move(s)) {
+        ++constructorCount;
+    }
+
+    Dummy(const Dummy& other) : a(other.a), s(other.s) {
+        ++constructorCount;
+    }
+
+    Dummy& operator=(const Dummy& other) {
+        a = other.a;
+        s = other.s;
+        return *this;
+    }
+
     bool operator==(const Dummy& other) const {
         return a == other.a && s == other.s;
     }
 };
+
+TEST(PoolTest, ConstructorCalledOnlyInResize) {
+    Dummy::constructorCount = 0;
+
+    Pool<Dummy> pool(3);
+    EXPECT_EQ(Dummy::constructorCount, 3);
+
+    auto obj1 = pool.acquire(1, "A");
+    auto obj2 = pool.acquire(2, "B");
+    auto obj3 = pool.acquire(3, "C");
+
+    EXPECT_EQ(Dummy::constructorCount, 3);
+}
+
+TEST(PoolTest, ResizeAgainIncreasesConstructorCount) {
+    Dummy::constructorCount = 0;
+    Pool<Dummy> pool(3);
+    EXPECT_EQ(Dummy::constructorCount, 3);
+    pool.resize(5);
+    EXPECT_EQ(Dummy::constructorCount, 8);
+}
 
 TEST(PoolTest, AcquireAndDereference) {
     Pool<Dummy> pool(3);

@@ -72,6 +72,8 @@ public:
         //      we would always move, even when the caller passed an lvalue—often the wrong choice.
         //   * With  TType(std::forward<TArgs>(args)...) the compiler
         //     picks copy or move for each argument as appropriate.
+
+        // BUG: here the TType constructor will also been called and trigger the assignement
         *obj = TType(std::forward<TArgs>(args)...);
         return Object<TType>(obj, this);
     }
