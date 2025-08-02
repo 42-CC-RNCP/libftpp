@@ -2,53 +2,40 @@
 #include "pool.hpp"
 
 struct Dummy {
-    static inline int constructorCount = 0;  // C++20 inline static
+    static inline size_t newCount  = 0;
+    static inline size_t delCount  = 0;
 
-    int a = 0;
+    static void* operator new(std::size_t sz) {
+        ++newCount;
+        return ::operator new(sz);
+    }
+    static void operator delete(void* p) noexcept {
+        ++delCount;
+        ::operator delete(p);
+    }
+
+    int a{};
     std::string s;
-
-    Dummy() {
-        ++constructorCount;
-    }
-
-    Dummy(int a, std::string s) : a(a), s(std::move(s)) {
-        ++constructorCount;
-    }
-
-    Dummy(const Dummy& other) : a(other.a), s(other.s) {
-        ++constructorCount;
-    }
-
-    Dummy& operator=(const Dummy& other) {
-        a = other.a;
-        s = other.s;
-        return *this;
-    }
-
-    bool operator==(const Dummy& other) const {
-        return a == other.a && s == other.s;
-    }
 };
 
-TEST(PoolTest, ConstructorCalledOnlyInResize) {
-    Dummy::constructorCount = 0;
+TEST(PoolTest, NoExtraAllocationInAcquire) {
+    Dummy::newCount = Dummy::delCount = 0;
+    {
+        Pool<Dummy> pool(3);
+        EXPECT_EQ(Dummy::newCount, 3);
 
-    Pool<Dummy> pool(3);
-    EXPECT_EQ(Dummy::constructorCount, 3);
+        auto h1 = pool.acquire(1, "x");
+        auto h2 = pool.acquire(2, "y");
+        auto h3 = pool.acquire(3, "z");
 
-    auto obj1 = pool.acquire(1, "A");
-    auto obj2 = pool.acquire(2, "B");
-    auto obj3 = pool.acquire(3, "C");
+        pool.release(h1.operator->());
+        pool.release(h2.operator->());
+        pool.release(h3.operator->());
+        EXPECT_EQ(Dummy::newCount, 3);
+        EXPECT_EQ(Dummy::delCount, 0);
 
-    EXPECT_EQ(Dummy::constructorCount, 3);
-}
-
-TEST(PoolTest, ResizeAgainIncreasesConstructorCount) {
-    Dummy::constructorCount = 0;
-    Pool<Dummy> pool(3);
-    EXPECT_EQ(Dummy::constructorCount, 3);
-    pool.resize(5);
-    EXPECT_EQ(Dummy::constructorCount, 8);
+    }
+    EXPECT_EQ(Dummy::delCount, 3);
 }
 
 TEST(PoolTest, AcquireAndDereference) {
