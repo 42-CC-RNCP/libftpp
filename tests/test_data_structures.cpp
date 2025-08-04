@@ -9,6 +9,11 @@ struct Dummy {
         ++newCount;
         return ::operator new(sz);
     }
+    
+    static void* operator new(std::size_t, void* where) noexcept {
+        return where;
+    }
+
     static void operator delete(void* p) noexcept {
         ++delCount;
         ::operator delete(p);
