@@ -74,6 +74,8 @@ public:
 
         TType* obj = _available.back();
         _available.pop_back();
+
+        obj->~TType(); // call the destructor but it does not free the memory
         // Re-initialize the object in place:
         //   * std::forward preserves each argument’s original value category
         //     (lvalue or rvalue), enabling perfect forwarding.
@@ -84,8 +86,9 @@ public:
         //   * With  TType(std::forward<TArgs>(args)...) the compiler
         //     picks copy or move for each argument as appropriate.
 
+        // use placement new to avoid creating templory instance
         // the TType constructor will be called but not allocate the memory again
-        *obj = TType(std::forward<TArgs>(args)...);
+        new (obj) TType(std::forward<TArgs>(args)...);
         return Object<TType>(obj, this);
     }
 
