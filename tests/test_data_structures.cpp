@@ -5,11 +5,14 @@ struct Dummy {
     static inline size_t newCount  = 0;
     static inline size_t delCount  = 0;
 
+    Dummy() = default;
+    Dummy(int aa, std::string ss) : a(aa), s(std::move(ss)) {}
+
     static void* operator new(std::size_t sz) {
         ++newCount;
         return ::operator new(sz);
     }
-    
+
     static void* operator new(std::size_t, void* where) noexcept {
         return where;
     }
