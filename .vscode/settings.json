@@ -2,5 +2,6 @@
     "[cpp]": {
         "editor.formatOnSave": true
     },
+    "clang-format.executable": "/usr/bin/clang-format",
     "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
 }

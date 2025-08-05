@@ -16,7 +16,10 @@
                 "ms-vscode.cpptools",
                 "elazarcoh.cpp2-syntax",
                 "eamodio.gitlens",
-                "ms-vscode.cmake-tools"
+                "ms-vscode.cmake-tools",
+                "jeff-hykin.better-cpp-syntax",
+                "llvm-vs-code-extensions.vscode-clangd",
+                "xaver.clang-format"
             ]
         }
     },
