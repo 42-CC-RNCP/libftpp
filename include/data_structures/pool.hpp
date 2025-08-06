@@ -57,6 +57,22 @@ public:
     }
     ~Pool() = default;
 
+    void resize(const size_t& numberOfObjectStored) {
+        if (numberOfObjectStored > _storage.size()) {
+            _storage.reserve(numberOfObjectStored);
+            size_t expandSize = numberOfObjectStored - _storage.size();
+            for (size_t i = 0; i < expandSize; i++) {
+                _storage.emplace_back(std::make_unique<TType>());
+                _available.push_back(_storage.back().get());
+            }
+            return;
+        }
+        size_t removeSize = _storage.size() - numberOfObjectStored;
+        for (size_t i = 0; (i < removeSize && !_available.empty()); i++) {
+            _available.pop_back();
+        }
+    }
+
     template <typename... TArgs>
     Object<TType> acquire(TArgs&&... args) {
         if (_available.empty())
@@ -64,6 +80,8 @@ public:
 
         TType* obj = _available.back();
         _available.pop_back();
+
+        obj->~TType(); // call the destructor but it does not free the memory
         // Re-initialize the object in place:
         //   * std::forward preserves each argument’s original value category
         //     (lvalue or rvalue), enabling perfect forwarding.
@@ -73,24 +91,20 @@ public:
         //      we would always move, even when the caller passed an lvalue—often the wrong choice.
         //   * With  TType(std::forward<TArgs>(args)...) the compiler
         //     picks copy or move for each argument as appropriate.
-        *obj = TType(std::forward<TArgs>(args)...);
+
+        // use placement new to avoid creating templory instance
+        // the TType constructor will be called but not allocate the memory again
+        new (obj) TType(std::forward<TArgs>(args)...);
         return Object<TType>(obj, this);
     }
 
-    void resize(const size_t& numberOfObjectStored) {
-        _storage.clear();
-        _available.clear();
-
-        for (size_t i = 0; i < numberOfObjectStored; i++) {
-            auto obj = std::make_unique<TType>();
-            // push the ptr of obj only
-            _available.push_back(obj.get());
-            _storage.push_back(std::move(obj));
-        }
-    }
-
     void release(TType* obj) {
-        _available.push_back(obj);
+        for (auto& ptr : _storage) {
+            if (ptr.get() == obj) {
+                _available.push_back(ptr.get());
+                return;
+            }
+        }
     }
 
 private:

@@ -2,14 +2,49 @@
 #include "pool.hpp"
 
 struct Dummy {
-    int a = 0;
-    std::string s;
+    static inline size_t newCount  = 0;
+    static inline size_t delCount  = 0;
+
     Dummy() = default;
-    Dummy(int a, std::string s) : a(a), s(std::move(s)) {}
-    bool operator==(const Dummy& other) const {
-        return a == other.a && s == other.s;
+    Dummy(int aa, std::string ss) : a(aa), s(std::move(ss)) {}
+
+    static void* operator new(std::size_t sz) {
+        ++newCount;
+        return ::operator new(sz);
     }
+
+    static void* operator new(std::size_t, void* where) noexcept {
+        return where;
+    }
+
+    static void operator delete(void* p) noexcept {
+        ++delCount;
+        ::operator delete(p);
+    }
+
+    int a{};
+    std::string s;
 };
+
+TEST(PoolTest, NoExtraAllocationInAcquire) {
+    Dummy::newCount = Dummy::delCount = 0;
+    {
+        Pool<Dummy> pool(3);
+        EXPECT_EQ(Dummy::newCount, 3);
+
+        auto h1 = pool.acquire(1, "x");
+        auto h2 = pool.acquire(2, "y");
+        auto h3 = pool.acquire(3, "z");
+
+        pool.release(h1.operator->());
+        pool.release(h2.operator->());
+        pool.release(h3.operator->());
+        EXPECT_EQ(Dummy::newCount, 3);
+        EXPECT_EQ(Dummy::delCount, 0);
+
+    }
+    EXPECT_EQ(Dummy::delCount, 3);
+}
 
 TEST(PoolTest, AcquireAndDereference) {
     Pool<Dummy> pool(3);
