@@ -58,12 +58,18 @@ public:
     ~Pool() = default;
 
     void resize(const size_t& numberOfObjectStored) {
-        _storage.clear();
-        _available.clear();
-
-        for (size_t i = 0; i < numberOfObjectStored; i++) {
-            _storage.emplace_back(std::make_unique<TType>());
-            _available.push_back(_storage.back().get());
+        if (numberOfObjectStored > _storage.size()) {
+            _storage.reserve(numberOfObjectStored);
+            size_t expandSize = numberOfObjectStored - _storage.size();
+            for (size_t i = 0; i < expandSize; i++) {
+                _storage.emplace_back(std::make_unique<TType>());
+                _available.push_back(_storage.back().get());
+            }
+            return;
+        }
+        size_t removeSize = _storage.size() - numberOfObjectStored;
+        for (size_t i = 0; (i < removeSize && !_available.empty()); i++) {
+            _available.pop_back();
         }
     }
 
