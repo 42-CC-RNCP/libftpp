@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <iterator>
 #include <list>
-#include <variant>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -13,7 +13,7 @@
 template <typename TType>
 class Pool
 {
-    using Slot = std::variant<TType, std::monostate>;
+    using Slot = std::optional<TType>;
     using It = typename std::list<Slot>::iterator;
 
 public:
@@ -44,10 +44,10 @@ public:
             }
         }
 
-        U* operator->() { return &std::get<U>(*it_); }
-        U& operator*()  { return std::get<U>(*it_); }
-        const U* operator->() const { return &std::get<U>(*it_); }
-        const U& operator*()  const { return std::get<U>(*it_);  }
+        U* operator->() { return &it_->value(); }
+        U& operator*()  { return it_->value(); }
+        const U* operator->() const { return &it_->value(); }
+        const U& operator*()  const { return it_->value();  }
 
         Object(const Object& other) = delete;
         Object& operator=(const Object& other) = delete;
@@ -70,7 +70,7 @@ public:
         if (newSize > S) {
             size_t expandSize = newSize - S;
             while (expandSize--) {
-                storage_.emplace_back(std::monostate{});
+                storage_.emplace_back(std::nullopt);
                 available_.push_back(std::prev(storage_.end()));
             }
             return;
@@ -98,9 +98,9 @@ public:
 
         try {
             // *it = TType(std::forward<TArgs>(args)...);
-            it->template emplace<TType>(std::forward<TArgs>(args)...);
+            it->emplace(std::forward<TArgs>(args)...);
         } catch (...) {
-            *it = std::monostate{};
+            *it = std::nullopt;
             available_.push_back(it);
             throw;
         }
@@ -111,7 +111,7 @@ public:
 private:
     friend class Object<TType>;
     void _release(It it) {
-        *it = std::monostate{};
+        *it = std::nullopt;
         available_.push_back(it);
     }
 
