@@ -2,14 +2,52 @@
 #include "pool.hpp"
 
 struct Dummy {
-    int a = 0;
+    static inline size_t ctor = 0;
+    static inline size_t dtor = 0;
+    static inline size_t moveCtor = 0;
+    static inline size_t copyCtor = 0;
+
+    int a{};
     std::string s;
-    Dummy() = default;
-    Dummy(int a, std::string s) : a(a), s(std::move(s)) {}
-    bool operator==(const Dummy& other) const {
-        return a == other.a && s == other.s;
-    }
+
+    Dummy() { ++ctor; }
+    Dummy(int aa, std::string ss) : a(aa), s(std::move(ss)) { ++ctor; }
+
+    Dummy(const Dummy& o) : a(o.a), s(o.s) { ++ctor; ++copyCtor; }
+    Dummy(Dummy&& o) noexcept : a(o.a), s(std::move(o.s)) { ++ctor; ++moveCtor; }
+
+    ~Dummy() { ++dtor; }
 };
+
+TEST(PoolTest, CtorDtor_Exact_WithEmplace) {
+    Dummy::ctor = Dummy::dtor = Dummy::moveCtor = Dummy::copyCtor = 0;
+
+    {
+        Pool<Dummy> pool(3);
+        auto h1 = pool.acquire(1, "x");
+        auto h2 = pool.acquire(2, "y");
+        auto h3 = pool.acquire(3, "z");
+
+        EXPECT_EQ(Dummy::ctor, 3);
+        EXPECT_EQ(Dummy::dtor, 0);
+    }
+    EXPECT_EQ(Dummy::dtor, 3);
+}
+
+TEST(PoolTest, ReuseSameAddress) {
+    Dummy::ctor = Dummy::dtor = 0;
+    Pool<Dummy> pool(1);
+    Dummy* p = nullptr;
+
+    {
+        auto h = pool.acquire(10, "a");
+        p = &*h;
+    }
+    EXPECT_EQ(Dummy::dtor, 1u);
+
+    auto h2 = pool.acquire(20, "b");
+    EXPECT_EQ(&*h2, p);
+}
 
 TEST(PoolTest, AcquireAndDereference) {
     Pool<Dummy> pool(3);

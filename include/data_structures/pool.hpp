@@ -2,103 +2,121 @@
 #pragma once
 
 #include <cstddef>
-#include <vector>
-#include <memory>
+#include <iterator>
+#include <list>
+#include <optional>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 
 template <typename TType>
 class Pool
 {
+    using Slot = std::optional<TType>;
+    using It = typename std::list<Slot>::iterator;
+
 public:
     template <typename U> class Object
     {
     public:
-        Object(U* p, Pool<U>* pool)
-            : _ptr(p), _owner(pool) {}
+        Object(It it, Pool<U>* owner) : it_(it), owner_(owner) {}
 
         Object(Object&& other) noexcept
-            : _ptr(other._ptr), _owner(other._owner)
+            : it_(other.it_), owner_(other.owner_)
         {
-            other._ptr = nullptr;
+            other.owner_ = nullptr;
         }
 
         Object& operator=(Object&& other) noexcept {
             if (this != &other) {
-                _ptr = other._ptr;
-                _owner = other._owner;
-                other._ptr = nullptr;
+                it_ = other.it_;
+                owner_ = other.owner_;
+                other.owner_ = nullptr;
             }
             return *this;
         }
 
         ~Object() {
-            if (_ptr && _owner) {
-                _owner->release(_ptr);
-                _ptr = nullptr;
+            if (owner_) {
+                owner_->_release(it_);
+                owner_ = nullptr;
             }
         }
 
-        U* operator->() { return _ptr; }
-        U& operator*()  { return *_ptr; }
+        U* operator->() { return &it_->value(); }
+        U& operator*()  { return it_->value(); }
+        const U* operator->() const { return &it_->value(); }
+        const U& operator*()  const { return it_->value();  }
 
         Object(const Object& other) = delete;
         Object& operator=(const Object& other) = delete;
 
     private:
-        U* _ptr;
-        Pool<U>* _owner;
+        It it_{};
+        Pool<U>* owner_{};
     };
 
 
-    Pool(size_t size) {
-        resize(size);
+    Pool(size_t n) {
+        resize(n);
     }
     ~Pool() = default;
 
-    template <typename... TArgs>
-    Object<TType> acquire(TArgs&&... args) {
-        if (_available.empty())
-            throw std::runtime_error("no object is available.");
-
-        TType* obj = _available.back();
-        _available.pop_back();
-        // Re-initialize the object in place:
-        //   * std::forward preserves each argument’s original value category
-        //     (lvalue or rvalue), enabling perfect forwarding.
-        //   * If we wrote  TType(args...)
-        //      we would always copy, because every arg is treated as an lvalue.
-        //   * If we wrote  TType(std::move(args)...)
-        //      we would always move, even when the caller passed an lvalue—often the wrong choice.
-        //   * With  TType(std::forward<TArgs>(args)...) the compiler
-        //     picks copy or move for each argument as appropriate.
-        *obj = TType(std::forward<TArgs>(args)...);
-        return Object<TType>(obj, this);
-    }
-
+    // const size_t& is worse then just size_t by value as a rule
     void resize(const size_t& numberOfObjectStored) {
-        _storage.clear();
-        _available.clear();
+        auto newSize = numberOfObjectStored;
+        auto S = storage_.size();
 
-        for (size_t i = 0; i < numberOfObjectStored; i++) {
-            auto obj = std::make_unique<TType>();
-            // push the ptr of obj only
-            _available.push_back(obj.get());
-            _storage.push_back(std::move(obj));
+        if (newSize > S) {
+            size_t expandSize = newSize - S;
+            while (expandSize--) {
+                storage_.emplace_back(std::nullopt);
+                available_.push_back(std::prev(storage_.end()));
+            }
+            return;
+        }
+
+        auto shrinkSize = S - newSize;
+        if (shrinkSize > available_.size()) {
+            throw std::runtime_error("cannot shrink: objects in use");
+        }
+
+        while (shrinkSize--) {
+            auto it = available_.back();
+            available_.pop_back();
+            storage_.erase(it);
         }
     }
 
-    void release(TType* obj) {
-        _available.push_back(obj);
+    template <typename... TArgs>
+    Object<TType> acquire(TArgs&&... args) {
+        if (available_.empty())
+            throw std::runtime_error("no object is available.");
+
+        It it = available_.back();
+        available_.pop_back();
+
+        try {
+            // *it = TType(std::forward<TArgs>(args)...);
+            it->emplace(std::forward<TArgs>(args)...);
+        } catch (...) {
+            *it = std::nullopt;
+            available_.push_back(it);
+            throw;
+        }
+
+        return Object<TType>(it, this);
     }
 
 private:
-    // has the ownership
-    // cannot be copy
-    // responseble for releasing
-    std::vector<std::unique_ptr<TType>> _storage;
+    friend class Object<TType>;
+    void _release(It it) {
+        *it = std::nullopt;
+        available_.push_back(it);
+    }
 
-    // doesnt have the ownership, only has the pointer, wont be double freed
-    std::vector<TType*> _available;
+private:
+    std::list<Slot> storage_;
+    std::vector<It> available_;
 };
