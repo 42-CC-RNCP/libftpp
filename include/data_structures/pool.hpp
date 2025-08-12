@@ -63,6 +63,7 @@ public:
     }
     ~Pool() = default;
 
+    // const size_t& is worse then just size_t by value as a rule
     void resize(const size_t& numberOfObjectStored) {
         auto newSize = numberOfObjectStored;
         auto S = storage_.size();
