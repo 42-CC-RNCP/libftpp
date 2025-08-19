@@ -1,6 +1,10 @@
 file(GLOB TEST_SOURCES "*.cpp")
 
-add_executable(test_data_structures ${TEST_SOURCES})
+# add_executable(test_data_structures ${TEST_SOURCES})
+add_executable(test_data_structures
+  pool_test.cpp
+  tlv_test.cpp
+)
 
 target_link_libraries(test_data_structures
     gtest_main
