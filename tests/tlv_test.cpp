@@ -1,55 +1,57 @@
 #include "tlv/tlv.hpp"
 #include <gtest/gtest.h>
 
+struct MemWriter
+{
+    std::vector<std::byte> bytes;
+    void writeBytes(std::span<const std::byte> s)
+    { // ByteWriter concept
+        bytes.insert(bytes.end(), s.begin(), s.end());
+    }
+};
+struct MemReader
+{
+    const std::vector<std::byte>& ref;
+    std::size_t pos{0};
+    void readExact(std::byte* p, std::size_t n)
+    { // ByteReader concept
+        if (pos + n > ref.size()) {
+            throw std::runtime_error("underflow");
+        }
+        std::memcpy(p, ref.data() + pos, n);
+        pos += n;
+    }
+};
 
 TEST(TLV, VarIntBoundary)
 {
-    struct
+    struct Case
     {
         uint64_t v;
         std::size_t expectedLen;
-    } tbl[] = {{0, 1}, {127, 1}, {128, 2}, {16'383, 2}, {16'384, 3}};
+    } tbl[] = {{0ull, 1},
+               {127ull, 1},
+               {128ull, 2},
+               {16383ull, 2},
+               {16384ull, 3},
+               {0xFFFFFFFFull, 5},
+               {0xFFFFFFFFFFFFFFFFull, 10}};
 
     for (auto [num, nBytes] : tbl) {
-        std::vector<std::byte> buf;
-        tlv::Writer::writeVarint(buf, num);
-        EXPECT_EQ(buf.size(), nBytes);
+        MemWriter w;
+        tlv::detail::write_varint(w, num); // encode
+        EXPECT_EQ(w.bytes.size(), nBytes);
 
-        const std::byte* cur = buf.data();
-        uint64_t out = tlv::Reader::readVarint(cur);
+        MemReader r{w.bytes};
+        uint64_t out = tlv::detail::read_varint(r); // decode
         EXPECT_EQ(out, num);
-        EXPECT_EQ(cur, buf.data() + nBytes);
+        EXPECT_EQ(r.pos, nBytes);
     }
 }
 
-// TEST(TLV, FixedEndianRoundTrip32)
-// {
-//     std::vector<std::byte> buf;
-//     writeFixed<std::uint32_t>(buf, 0x12345678u);
-//     const std::byte* p = buf.data();
-//     auto v = readFixed<std::uint32_t>(p);
-//     EXPECT_EQ(v, 0x12345678u);
-// }
-
-// TEST(TLV, FixedEndianRoundTrip64)
-// {
-//     std::vector<std::byte> buf;
-//     writeFixed<std::uint64_t>(buf, 0x1122334455667788ULL);
-//     const std::byte* p = buf.data();
-//     auto v = readFixed<std::uint64_t>(p);
-//     EXPECT_EQ(v, 0x1122334455667788ULL);
-// }
-
-// TEST(TLV, BytesBlock)
-// {
-//     std::vector<std::byte> payload(200);
-//     std::iota(payload.begin(), payload.end(), std::byte{0});
-//     std::vector<std::byte> buf;
-//     writeLenBytes(buf, payload.data(), payload.size());
-
-//     const std::byte* p = buf.data();
-//     size_t len{};
-//     const std::byte* start = readLenBytes(p, len);
-//     ASSERT_EQ(len, payload.size());
-//     EXPECT_TRUE(std::equal(start, start+len, payload.begin()));
-// }
+TEST(TLV, VarIntTooLongThrows)
+{
+    std::vector<std::byte> bad(10, std::byte{static_cast<unsigned char>(0x80)});
+    MemReader r{bad};
+    EXPECT_THROW({ (void)tlv::detail::read_varint(r); }, std::runtime_error);
+}
