@@ -1,4 +1,4 @@
-#include "tlv/tlv.hpp"
+#include "tlv.hpp"
 #include <gtest/gtest.h>
 
 struct MemWriter

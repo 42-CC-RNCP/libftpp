@@ -1,5 +1,5 @@
 #pragma once
-#include "tlv/io.hpp"
+#include "tlv_io.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -90,11 +90,58 @@ template <ByteReader In> inline std::uint64_t read_varint(In& in)
 }
 
 template <ByteWriter Out>
-inline void write_fixed32_le(Out& out, std::uint32_t x);
+inline void write_fixed32_le(Out& out, std::uint32_t x)
+{
+    // convert to little-end byte by byte
+    std::byte b[4] = {
+        std::byte(x & 0xFFu),
+        std::byte((x >> 8) & 0xFFu),
+        std::byte((x >> 16) & 0xFFu),
+        std::byte((x >> 24) & 0xFFu),
+    };
+    out.writeBytes({b, 4});
+}
+
 template <ByteWriter Out>
-inline void write_fixed64_le(Out& out, std::uint64_t x);
-template <ByteReader In> inline std::uint32_t read_fixed32_le(In& in);
-template <ByteReader In> inline std::uint64_t read_fixed64_le(In& in);
+ void write_fixed64_le(Out& out, std::uint64_t x)
+{
+    // convert to little-end byte by byte
+    std::byte b[8] = {
+        std::byte(x & 0xFFu),
+        std::byte((x >> 8) & 0xFFu),
+        std::byte((x >> 16) & 0xFFu),
+        std::byte((x >> 24) & 0xFFu),
+        std::byte((x >> 32) & 0xFFu),
+        std::byte((x >> 40) & 0xFFu),
+        std::byte((x >> 48) & 0xFFu),
+        std::byte((x >> 56) & 0xFFu),
+    };
+    out.writeBytes({b, 8});
+}
+template <ByteReader In> inline std::uint32_t read_fixed32_le(In& in)
+{
+    std::byte b[4];
+    in.readExact(b, 4);
+
+    return (std::uint32_t(std::to_integer<unsigned>(b[0])))
+           | ((std::uint32_t(std::to_integer<unsigned>(b[1]))) << 8)
+           | ((std::uint32_t(std::to_integer<unsigned>(b[2]))) << 16)
+           | ((std::uint32_t(std::to_integer<unsigned>(b[3]))) << 24);
+}
+template <ByteReader In> inline std::uint64_t read_fixed64_le(In& in)
+{
+    std::byte b[8];
+    in.readExact(b, 8);
+
+    return (std::uint64_t(std::to_integer<unsigned>(b[0])))
+           | ((std::uint64_t(std::to_integer<unsigned>(b[1]))) << 8)
+           | ((std::uint64_t(std::to_integer<unsigned>(b[2]))) << 16)
+           | ((std::uint64_t(std::to_integer<unsigned>(b[3]))) << 24)
+           | ((std::uint64_t(std::to_integer<unsigned>(b[4]))) << 32)
+           | ((std::uint64_t(std::to_integer<unsigned>(b[5]))) << 40)
+           | ((std::uint64_t(std::to_integer<unsigned>(b[6]))) << 48)
+           | ((std::uint64_t(std::to_integer<unsigned>(b[7]))) << 56);
+}
 } // namespace detail
 
 // export functions
