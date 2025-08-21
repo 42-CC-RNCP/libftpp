@@ -70,6 +70,27 @@ template <class In> inline WireType read_header(In& in)
 namespace detail
 {
 
+// ZigZag codec
+inline uint32_t zigzag_encode32(int32_t n)
+{
+    return (uint32_t(n) << 1) ^ uint32_t(n >> 31);
+}
+
+inline uint64_t zigzag_encode64(int64_t n)
+{
+    return (uint64_t(n) << 1) ^ uint64_t(n >> 63);
+}
+
+inline int64_t zigzag_decode64(uint64_t u)
+{
+    return static_cast<int64_t>((u >> 1) ^ (~(u & 1) + 1));
+}
+
+inline int32_t zigzag_decode32(uint32_t u)
+{
+    return static_cast<int32_t>((u >> 1) ^ (~(u & 1) + 1));
+}
+
 // Base-128 varint, support 64-bit type < 10bytes (ceil(64 / 7))
 constexpr int kMaxVarint64 = (64 + 6) / 7;
 
