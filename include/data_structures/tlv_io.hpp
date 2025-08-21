@@ -1,5 +1,4 @@
 #pragma once
-#include <concepts>
 #include <cstddef>
 #include <span>
 
@@ -19,5 +18,12 @@ concept ByteReader = requires(T& t, std::byte* p, std::size_t n) {
 
 template <class T>
 concept ByteIO = ByteWriter<T> && ByteReader<T>;
+
+struct Sizer
+{
+    std::size_t n{0};
+
+    void writeBytes(std::span<const std::byte> s) { n += s.size(); }
+};
 
 } // namespace tlv
