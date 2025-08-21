@@ -191,8 +191,83 @@ template <ByteReader In> inline std::uint64_t read_fixed64_le(In& in)
 } // namespace detail
 
 // export functions
-template <ByteIO IO, class T> void write(IO& out, const T& v);
+template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
+{
+    static_assert(!std::is_pointer_v<T>,
+                  "TODO: pointers are not serializable.");
+    // 1. handle raw bytes
+    // 2. handle int and enum
+    // 2.1 -> unsigned int with varint to save space
+    // 2.2 -> signed int with zigzag or Fixed*
+    // 3. handle float
+    // 4. handle string
+    // 5.1 -> std container: vector
+    // 5.2 -> std container: array
+    // 6. handle void
+    // 7. handle optional
+    // 8. handle serializable
+    // handle others
 
-template <ByteIO IO, class T> void read(IO& in, T& v);
+    if constexpr (raw_byte_like_v<T>) {
+        // convert `1` of object T which continus in mem to bytes
+        out.writeBytes(std::as_bytes(std::span{&v, 1}));
+    }
+    else if constexpr (std::is_integral_v<T> || std::is_enum_v<T>) {
+        // extract real type if it is enum
+        using U = typename std::conditional_t<std::is_enum_v<T>,
+                                              std::underlying_type<T>,
+                                              std::type_identity<T> >::type;
+
+        if constexpr (std::is_signed_v<U>) {
+            write_header(out, WireType::VarSIntZigZag);
+            detail::write_varint_s(out, static_cast<std::int64_t>(v));
+        }
+        else {
+            write_header(out, WireType::VarUInt);
+            detail::write_varuint(out, static_cast<std::uint64_t>(v));
+        }
+    }
+    else if constexpr (std::is_floating_point_v<T>) {
+        if constexpr (sizeof(T) == 4) {
+            write_header(out, WireType::Fixed32);
+            detail::write_fixed32_le(out, std::bit_cast<std::uint32_t>(v));
+        }
+        else {
+            write_header(out, WireType::Fixed64);
+            detail::write_fixed64_le(out, std::bit_cast<std::uint64_t>(v));
+        }
+    }
+    else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>) {
+        write_header(out, WireType::Bytes);
+        auto n = v.size();
+
+        if constexpr (requires { out.limits().max_string_bytes; }) {
+            if (n > out.limits().max_string_bytes) {
+                throw std::runtime_error("string too long");
+            }
+        }
+        detail::write_varuint(out, n);
+        if (n) {
+            out.writeBytes(std::as_bytes(std::span{v.data(), n}));
+        }
+    }
+    else if constexpr (serializable_v<T, IO>) {
+        Sizer s;
+
+        // 1st pass to get the length
+        serialize(v, s);
+        write_header(out, WireType::Bytes);
+        // write len
+        detail::write_varuint(out, s.n);
+        // write payload
+        serialize(v, out);
+    }
+    else {
+        static_assert(dependent_false_v<T>,
+                      "Type not serializable; provide serialize() or TBD");
+    }
+}
+
+template <ByteReader IO, class T> inline void read_value(IO& in, T& v);
 
 } // namespace tlv
