@@ -1,10 +1,11 @@
 #pragma once
 #include "tlv_io.hpp"
+#include "tlv_type_traits.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <span>
 #include <stdexcept>
-#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -12,41 +13,58 @@
 namespace tlv
 {
 
-// basic wire type
 enum class WireType : std::uint8_t
 {
-    VarInt,
-    Fixed32,
-    Fixed64,
-    Bytes,
-    NestedTLV
+    VarUInt = 0,
+    VarSIntZigZag = 1,
+    Bytes = 2,
+    Fixed32 = 3,
+    Fixed64 = 4,
 };
 
-// // serialization traits
-// template <class Any, class = void> struct is_serializable : std::false_type
-// {
-// };
+constexpr std::uint8_t wire_code(WireType t)
+{
+    switch (t) {
+    case WireType::VarUInt:
+        return 0;
+    case WireType::VarSIntZigZag:
+        return 1;
+    case WireType::Bytes:
+        return 2;
+    case WireType::Fixed32:
+        return 3;
+    case WireType::Fixed64:
+        return 4;
+    }
+    return 5;
+}
 
-// template <class T>
-// struct is_serializable<
-//     T,
-//     std::void_t<decltype(serialize(std::declval<const T&>(),
-//                                    std::declval<auto&>())),
-//                 decltype(deserialize(std::declval<auto&>(),
-//                                      std::declval<T&>()))> > : std::true_type
-// {
-// };
+template <class Out> inline void write_header(Out& out, WireType t)
+{
+    const std::byte b{static_cast<std::byte>(wire_code(t) & 0x07)};
+    out.writeBytes({&b, 1});
+}
 
-// template <class T>
-// inline constexpr bool is_serializable_v = is_serializable<T>::value;
+template <class In> inline WireType read_header(In& in)
+{
+    std::byte b;
 
-// byte-like object can do bulk copy
-template <class T>
-inline constexpr bool raw_byte_like_v =
-    std::is_same_v<std::remove_cv_t<T>, std::byte>
-    || std::is_same_v<std::remove_cv_t<T>, unsigned char>
-    || std::is_same_v<std::remove_cv_t<T>, std::uint8_t>
-    || std::is_same_v<std::remove_cv_t<T>, char>;
+    in.readExact(&b, 1);
+    switch (std::to_integer<uint8_t>(b) & 0x07) {
+    case 0:
+        return WireType::VarUInt;
+    case 1:
+        return WireType::VarSIntZigZag;
+    case 2:
+        return WireType::Bytes;
+    case 3:
+        return WireType::Fixed32;
+    case 4:
+        return WireType::Fixed64;
+    default:
+        throw std::runtime_error("unknown wire");
+    }
+}
 
 // internal functions
 namespace detail
