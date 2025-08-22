@@ -215,6 +215,12 @@ template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
     // handle others
 
     if constexpr (raw_byte_like_v<T>) {
+        // header
+        write_header(out, WireType::Bytes);
+        // len
+        constexpr std::uint64_t n = sizeof(T);
+        detail::write_varuint(out, n);
+        // payload
         // convert `1` of object T which continus in mem to bytes
         out.writeBytes(std::as_bytes(std::span{&v, 1}));
     }
@@ -222,7 +228,7 @@ template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
         // extract real type if it is enum
         using U = typename std::conditional_t<std::is_enum_v<T>,
                                               std::underlying_type<T>,
-                                              std::type_identity<T> >::type;
+                                              std::type_identity<T>>::type;
 
         if constexpr (std::is_signed_v<U>) {
             write_header(out, WireType::VarSIntZigZag);
@@ -244,6 +250,7 @@ template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
         }
     }
     else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>) {
+        // header
         write_header(out, WireType::Bytes);
         auto n = v.size();
 
@@ -252,7 +259,9 @@ template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
                 throw std::runtime_error("string too long");
             }
         }
+        // len
         detail::write_varuint(out, n);
+        // payload
         if (n) {
             out.writeBytes(std::as_bytes(std::span{v.data(), n}));
         }
@@ -262,10 +271,11 @@ template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
 
         // 1st pass to get the length
         serialize(v, s);
+        // header
         write_header(out, WireType::Bytes);
         // write len
         detail::write_varuint(out, s.n);
-        // write payload
+        // 2nd pass write payload
         serialize(v, out);
     }
     else {
