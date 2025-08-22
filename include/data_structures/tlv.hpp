@@ -134,6 +134,12 @@ template <ByteReader In> inline std::uint64_t read_varuint(In& in)
     throw std::runtime_error("varint too long");
 }
 
+template <ByteReader In> inline std::uint64_t read_varint_s(In& in)
+{
+    const std::uint64_t n = read_varuint(in);
+    return zigzag_decode64(n);
+}
+
 template <ByteWriter Out>
 inline void write_fixed32_le(Out& out, std::uint32_t x)
 {
