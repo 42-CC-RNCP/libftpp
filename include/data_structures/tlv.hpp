@@ -1,14 +1,13 @@
 #pragma once
 #include "tlv_io.hpp"
 #include "tlv_type_traits.hpp"
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <span>
 #include <stdexcept>
 #include <type_traits>
-#include <utility>
-#include <vector>
 
 namespace tlv
 {
@@ -269,7 +268,7 @@ template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
     else if constexpr (serializable_v<T, IO>) {
         Sizer s;
 
-        // 1st pass to get the length
+        // 1st pass to get the total length of all the fields
         serialize(v, s);
         // header
         write_header(out, WireType::Bytes);
@@ -284,6 +283,117 @@ template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
     }
 }
 
-template <ByteReader IO, class T> inline void read_value(IO& in, T& v);
+template <ByteReader IO, class T> inline void read_value(IO& in, T& v)
+{
+    static_assert(!std::is_pointer_v<T>,
+                  "TODO: pointers are not deserializable.");
+
+    const WireType wt = read_header(in);
+
+    switch (wt) {
+    case WireType::VarUInt: {
+        auto u = detail::read_varuint(in);
+
+        if constexpr (std::is_integral_v<T> && !std::is_signed_v<T>) {
+            v = static_cast<T>(u);
+        }
+        else if constexpr (std::is_enum_v<T>) {
+            if constexpr (!std::is_signed_v<std::underlying_type_t<T>>) {
+                v = static_cast<T>(u);
+            }
+            else {
+                throw std::runtime_error(
+                    "miss matched decode failed: VarUInt (enum with signed underlying)");
+            }
+        }
+        else {
+            throw std::runtime_error("miss matched decode failed: VarUInt");
+        }
+        break;
+    }
+    case WireType::VarSIntZigZag: {
+        auto s = detail::read_varint_s(in);
+        if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+            v = static_cast<T>(s);
+        }
+        else if constexpr (std::is_enum_v<T>) {
+            if constexpr (std::is_signed_v<std::underlying_type_t<T>>) {
+                v = static_cast<T>(s);
+            }
+            else {
+                throw std::runtime_error(
+                    "miss matched decode failed: VarSIntZigZag (enum with signed underlying)");
+            }
+        }
+        else {
+            throw std::runtime_error(
+                "miss matched decode failed: VarSIntZigZag");
+        }
+        break;
+    }
+    case WireType::Fixed32: {
+        auto x = detail::read_fixed32_le(in);
+        if constexpr (std::is_floating_point_v<T> && sizeof(T) == 4) {
+            v = std::bit_cast<T>(x);
+        }
+        else if constexpr (std::is_integral_v<T> && sizeof(T) <= 4) {
+            v = static_cast<T>(x);
+        }
+        else {
+            throw std::runtime_error("miss matched decode failed: Fixed32");
+        }
+        break;
+    }
+    case WireType::Fixed64: {
+        auto x = detail::read_fixed64_le(in);
+        if constexpr (std::is_floating_point_v<T> && sizeof(T) == 8) {
+            v = std::bit_cast<T>(x);
+        }
+        else if constexpr (std::is_integral_v<T> && sizeof(T) <= 8) {
+            v = static_cast<T>(x);
+        }
+        else {
+            throw std::runtime_error("miss matched decode failed: Fixed64");
+        }
+        break;
+    }
+    case WireType::Bytes: {
+        size_t len = detail::read_varuint(in);
+
+        if (!len) {
+            // do nothing
+            break;
+        }
+
+        // 1. raw bytes
+        // 2. string
+        // 3. serialized
+        if constexpr (raw_byte_like_v<T>) {
+            if (len != sizeof(T)) {
+                throw std::runtime_error("raw byte scalar size mismatch");
+            }
+            in.readExact(reinterpret_cast<std::byte*>(&v), sizeof(T));
+        }
+        else if constexpr (std::is_same_v<std::string, std::remove_cv_t<T>>) {
+            if constexpr (requires { in.limits().max_string_bytes; }) {
+                if (len > in.limits().max_string_bytes) {
+                    throw std::runtime_error("string too long");
+                }
+            }
+            v.resize(len);
+            in.readExact(reinterpret_cast<std::byte*>(v.data()), len);
+        }
+        else if constexpr (serializable_v<T, IO>) {
+            deserialize(in, v);
+        }
+        else {
+            throw std::runtime_error("miss matched decode failed: Bytes");
+        }
+        break;
+    }
+    default:
+        throw std::runtime_error("cannot match to any type");
+    }
+}
 
 } // namespace tlv
