@@ -11,12 +11,12 @@
 
 template <class T> DataBuffer& operator<<(DataBuffer& out, const T& v)
 {
-    tlv::write(out, v);
+    tlv::write_value(out, v);
     return out;
 }
 
 template <class T> DataBuffer& operator>>(DataBuffer& in, T& v)
 {
-    tlv::read(in, v);
+    tlv::read_value(in, v);
     return in;
 }
