@@ -134,7 +134,7 @@ template <ByteReader In> inline std::uint64_t read_varuint(In& in)
     throw std::runtime_error("varint too long");
 }
 
-template <ByteReader In> inline std::uint64_t read_varint_s(In& in)
+template <ByteReader In> inline std::int64_t read_varint_s(In& in)
 {
     const std::uint64_t n = read_varuint(in);
     return zigzag_decode64(n);
