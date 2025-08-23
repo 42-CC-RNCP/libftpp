@@ -1,5 +1,4 @@
 #include "tlv.hpp"
-#include <bit>
 #include <cstdint>
 #include <cstring>
 #include <gtest/gtest.h>
@@ -23,6 +22,23 @@ struct WLWriter
     void writeBytes(std::span<const std::byte> s)
     {
         bytes.insert(bytes.end(), s.begin(), s.end());
+    }
+    const Limit& limits() const { return lim; }
+};
+
+struct WLReader
+{
+    using Limit = WLWriter::Limit;
+    Limit lim{};
+    const std::vector<std::byte>& ref;
+    std::size_t pos{0};
+    void readExact(std::byte* p, std::size_t n)
+    {
+        if (pos + n > ref.size()) {
+            throw std::runtime_error("underflow");
+        }
+        std::memcpy(p, ref.data() + pos, n);
+        pos += n;
     }
     const Limit& limits() const { return lim; }
 };
@@ -434,4 +450,195 @@ TEST(TLV_WriteValue, SerializableObjectIsBytesWrapper)
                   std::to_integer<uint8_t>(payload.bytes[i]))
             << "i=" << i;
     }
+}
+
+TEST(TLV_ReadValue, UnsignedAndSignedInts_RoundTrip)
+{
+    // u32
+    {
+        uint32_t in_v = 300, out_v = 0;
+        WLWriter w;
+        write_value(w, in_v);
+        WLReader r{.ref = w.bytes};
+        read_value(r, out_v);
+        EXPECT_EQ(out_v, in_v);
+        EXPECT_EQ(r.pos, w.bytes.size());
+    }
+    // i32
+    {
+        int32_t in_v = -123, out_v = 0;
+        WLWriter w;
+        write_value(w, in_v);
+        WLReader r{.ref = w.bytes};
+        read_value(r, out_v);
+        EXPECT_EQ(out_v, in_v);
+        EXPECT_EQ(r.pos, w.bytes.size());
+    }
+}
+
+TEST(TLV_ReadValue, FloatAndDouble_RoundTrip)
+{
+    // float
+    {
+        float in_v = 3.5f, out_v = 0.f;
+        WLWriter w;
+        write_value(w, in_v);
+        WLReader r{.ref = w.bytes};
+        read_value(r, out_v);
+        EXPECT_FLOAT_EQ(out_v, in_v);
+        EXPECT_EQ(r.pos, w.bytes.size());
+    }
+    // double
+    {
+        double in_v = 3.141592653589793, out_v = 0.0;
+        WLWriter w;
+        write_value(w, in_v);
+        WLReader r{.ref = w.bytes};
+        read_value(r, out_v);
+        EXPECT_DOUBLE_EQ(out_v, in_v);
+        EXPECT_EQ(r.pos, w.bytes.size());
+    }
+}
+
+TEST(TLV_ReadValue, String_RoundTrip)
+{
+    // normal
+    {
+        std::string s_in = "hello", s_out;
+        WLWriter w;
+        write_value(w, s_in);
+        WLReader r{.ref = w.bytes};
+        r.lim.max_string_bytes = (std::size_t)-1;
+        read_value(r, s_out);
+        EXPECT_EQ(s_out, s_in);
+        EXPECT_EQ(r.pos, w.bytes.size());
+    }
+    // empty
+    {
+        std::string s_in = "", s_out = "";
+        WLWriter w;
+        write_value(w, s_in);
+        WLReader r{.ref = w.bytes};
+        r.lim.max_string_bytes = (std::size_t)-1;
+        read_value(r, s_out);
+        EXPECT_EQ(s_out, s_in);
+        EXPECT_EQ(r.pos, w.bytes.size());
+    }
+}
+
+namespace model2
+{
+struct Car
+{
+    std::uint32_t id;
+    std::string model;
+};
+
+template <class IO> void serialize(const Car& c, IO& out)
+{
+    write_value(out, c.id);
+    write_value(out, c.model);
+}
+template <class IO> void deserialize(IO& in, Car& c)
+{
+    read_value(in, c.id);
+    read_value(in, c.model);
+}
+
+struct Trip
+{
+    Car car;
+    std::uint32_t distance;
+};
+
+template <class IO> void serialize(const Trip& t, IO& out)
+{
+    write_value(out, t.car);
+    write_value(out, t.distance);
+}
+template <class IO> void deserialize(IO& in, Trip& t)
+{
+    read_value(in, t.car);
+    read_value(in, t.distance);
+}
+} // namespace model2
+
+TEST(TLV_ReadWrite, SerializableObject_RoundTrip)
+{
+    using model2::Car;
+
+    Car a{150, "A"}, b{};
+    WLWriter w;
+    write_value(w, a);
+
+    WLReader r{.ref = w.bytes};
+    r.lim.max_string_bytes = (std::size_t)-1;
+    read_value(r, b);
+
+    EXPECT_EQ(b.id, a.id);
+    EXPECT_EQ(b.model, a.model);
+    EXPECT_EQ(r.pos, w.bytes.size());
+}
+
+TEST(TLV_ReadWrite, NestedObject_RoundTrip)
+{
+    using model2::Trip;
+    Trip in{{150, "A"}, 12345}, out{};
+
+    WLWriter w;
+    write_value(w, in);
+    WLReader r{.ref = w.bytes};
+    r.lim.max_string_bytes = (std::size_t)-1;
+
+    read_value(r, out);
+    EXPECT_EQ(out.car.id, in.car.id);
+    EXPECT_EQ(out.car.model, in.car.model);
+    EXPECT_EQ(out.distance, in.distance);
+    EXPECT_EQ(r.pos, w.bytes.size());
+}
+
+TEST(TLV_ReadWrite, TwoTopLevelObjectsBackToBack)
+{
+    using model2::Car;
+    Car a{150, "A"}, b{151, "B"}, x{}, y{};
+
+    WLWriter w;
+    write_value(w, a);
+    write_value(w, b);
+
+    WLReader r{.ref = w.bytes};
+    r.lim.max_string_bytes = (std::size_t)-1;
+
+    read_value(r, x);
+    read_value(r, y);
+
+    EXPECT_EQ(x.id, a.id);
+    EXPECT_EQ(x.model, a.model);
+    EXPECT_EQ(y.id, b.id);
+    EXPECT_EQ(y.model, b.model);
+    EXPECT_EQ(r.pos, w.bytes.size());
+}
+
+TEST(TLV_ReadValue, StringTooLongThrowsOnRead)
+{
+    WLWriter w;
+    std::string s = "toolong";
+    write_value(w, s);
+
+    WLReader r{.ref = w.bytes};
+    r.lim.max_string_bytes = 3;
+    std::string out;
+
+    EXPECT_THROW(read_value(r, out), std::runtime_error);
+}
+
+TEST(TLV_ReadValue, TypeMismatchThrows)
+{
+    WLWriter w;
+    uint32_t u = 42;
+    write_value(w, u);
+    WLReader r{.ref = w.bytes};
+    std::string s;
+
+    EXPECT_THROW(read_value(r, s), std::runtime_error);
 }
