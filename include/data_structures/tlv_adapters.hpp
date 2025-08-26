@@ -2,6 +2,8 @@
 #include "data_buffer.hpp"
 #include "tlv.hpp"
 
+class DataBuffer;
+
 // DataBuffer or any others *Buffer do not need to know TLV
 // register in the header
 
