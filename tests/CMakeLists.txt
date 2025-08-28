@@ -16,7 +16,7 @@ target_link_libraries(test_data_structures
 )
 
 target_include_directories(test_data_structures PRIVATE
-    ${PROJECT_SOURCE_DIR}/include/data_structures
+    ${PROJECT_SOURCE_DIR}/include
 )
 
 include(GoogleTest)

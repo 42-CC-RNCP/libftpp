@@ -16,4 +16,5 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_subdirectory(src/data_structures)
+add_subdirectory(src/design_patterns)
 add_subdirectory(tests)

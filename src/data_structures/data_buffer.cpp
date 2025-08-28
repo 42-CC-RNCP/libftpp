@@ -1,4 +1,4 @@
-#include "data_buffer.hpp"
+#include "data_structures/data_buffer.hpp"
 #include <stdexcept> // std::runtime_error
 
 void DataBuffer::writeBytes(std::span<const std::byte> s)
