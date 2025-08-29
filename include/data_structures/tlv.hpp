@@ -108,6 +108,13 @@ inline void write_varuint(Out& out, std::uint64_t value)
     out.writeBytes({tmp, i});
 }
 
+inline std::size_t varuint_len(std::uint64_t n)
+{
+    Sizer s;
+    tlv::detail::write_varuint(s, n);
+    return s.n;
+}
+
 // ZigZag + VarInt for signed
 template <class Out> inline void write_varint_s(Out&& out, std::int64_t n)
 {
@@ -248,6 +255,37 @@ template <ByteWriter IO, class T> inline void write_value(IO& out, const T& v)
             detail::write_fixed64_le(out, std::bit_cast<std::uint64_t>(v));
         }
     }
+    else if constexpr (is_container_like<T>) {
+        Sizer s;
+        std::uint64_t elem_count = 0;
+
+        if constexpr (requires(const T& x) { x.size(); }) {
+            elem_count = static_cast<std::uint64_t>(v.size());
+        }
+        else {
+            elem_count = static_cast<std::uint64_t>(
+                std::distance(std::begin(v), std::end(v)));
+        }
+
+        // element count also part of the payload
+        s.n += detail::varuint_len(elem_count);
+
+        // iter each element in the sequence container to sum up the total
+        // payload size
+        for (auto const& e : v) {
+            write_value(s, e);
+        }
+        // header
+        write_header(out, WireType::Bytes);
+        // Bytes(len)
+        detail::write_varuint(out, s.n);
+        // payload: count of element
+        detail::write_varuint(out, elem_count);
+        // payload: contain of each element
+        for (auto const& e : v) {
+            write_value(out, e);
+        }
+    }
     else if constexpr (std::is_same_v<std::remove_cv_t<T>, std::string>) {
         // header
         write_header(out, WireType::Bytes);
@@ -382,6 +420,39 @@ template <ByteReader IO, class T> inline void read_value(IO& in, T& v)
             }
             v.resize(len);
             in.readExact(reinterpret_cast<std::byte*>(v.data()), len);
+        }
+        else if constexpr (is_container_like<T>) {
+            std::uint64_t elem_count = detail::read_varuint(in);
+
+            if constexpr (requires { in.limits().max_elements; }) {
+                if (elem_count > in.limits().max_elements) {
+                    throw std::runtime_error("too many elements");
+                }
+            }
+
+            if constexpr (is_std_array_v<T>) {
+                constexpr std::uint64_t N =
+                    static_cast<std::uint64_t>(std::tuple_size_v<T>);
+                if (elem_count != N) {
+                    throw std::runtime_error(
+                        "read_value: std::array size mismatch");
+                }
+                for (std::size_t i = 0; i < N; ++i) {
+                    read_value(in, v[i]);
+                }
+            }
+            else {
+                if constexpr (requires(T& x) { x.clear(); }) {
+                    v.clear();
+                }
+
+                auto it = std::inserter(v, std::end(v));
+                for (std::uint64_t i = 0; i < elem_count; ++i) {
+                    typename T::value_type elem{};
+                    read_value(in, elem);
+                    *it++ = std::move(elem);
+                }
+            }
         }
         else if constexpr (serializable_v<T, IO>) {
             deserialize(in, v);
