@@ -4,7 +4,7 @@ RUN apt update && apt install -y \
     build-essential \
     git \
     tree \
-    clang-17 \
+    clang-17 clangd-17 \
     cmake \
     wget \
     curl \

@@ -3,5 +3,7 @@
         "editor.formatOnSave": true
     },
     "clang-format.executable": "/usr/bin/clang-format",
+    "clangd.path": "/usr/bin/clangd-17",
+    "clangd.arguments": ["--background-index", "--all-scopes-completion"],
     "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json"
 }

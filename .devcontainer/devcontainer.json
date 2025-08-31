@@ -10,16 +10,24 @@
     "customizations": {
         "vscode": {
             "settings": {
-                "terminal.integrated.defaultProfile.linux": "zsh"
+                "terminal.integrated.defaultProfile.linux": "zsh",
+                "clangd.path": "/usr/bin/clangd-17",
+                "clangd.arguments": ["--compile-commands-dir=build","--background-index"],
+                "editor.suggestOnTriggerCharacters": true,
+                "files.associations": {
+                    "*.cpp2": "cpp",
+                    "*.tpp": "cpp",
+                    "*.ipp": "cpp",
+                    "*.inl": "cpp"
+                }
             },
             "extensions": [
-                "ms-vscode.cpptools",
-                "elazarcoh.cpp2-syntax",
-                "eamodio.gitlens",
-                "ms-vscode.cmake-tools",
-                "jeff-hykin.better-cpp-syntax",
                 "llvm-vs-code-extensions.vscode-clangd",
-                "xaver.clang-format"
+                "ms-vscode.cmake-tools",
+                "xaver.clang-format",
+                "eamodio.gitlens",
+                "jeff-hykin.better-cpp-syntax",
+                "elazarcoh.cpp2-syntax"
             ]
         }
     },
