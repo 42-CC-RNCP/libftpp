@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "pool.hpp"
+#include <data_structures/pool.hpp>
 
 struct Dummy {
     static inline size_t ctor = 0;
