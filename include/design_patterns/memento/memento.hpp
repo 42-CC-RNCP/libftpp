@@ -1,6 +1,8 @@
 // include/design_patterns/memento/memento.hpp
 #pragma once
-#include <data_structures/data_buffer.hpp>
+#include "snapio.hpp"
+#include <memory>
+#include <utility>
 
 class Memento
 {
@@ -8,43 +10,50 @@ public:
     class Snapshot
     {
     public:
-        // warp the IO operations of data buffer
-        DataBuffer& io();
-        const DataBuffer& io() const;
-
-        template <class T> Snapshot& operator<<(const T& v)
+        Snapshot() : io_(std::make_unique<VectorSnapIO>()) {}
+        // force user needs to claim specifically, avoid implicit casting
+        explicit Snapshot(std::unique_ptr<SnapIO> io) : io_(std::move(io)) {}
+        Snapshot(const Snapshot& rhs) : io_(rhs.io_->clone()) {}
+        Snapshot& operator=(const Snapshot& rhs)
         {
-            dbuf_ << v;
+            if (this != &rhs) {
+                io_ = rhs.io_->clone();
+            }
             return *this;
         }
-
-        template <class T> Snapshot& operator>>(T& v)
-        {
-            dbuf_ >> v;
-            return *this;
-        }
-
-    public:
-        Snapshot() = default;
-        // the databuffer is not copyable
-        Snapshot(const Snapshot&);
-        Snapshot& operator=(const Snapshot& other);
         Snapshot(Snapshot&&) noexcept = default;
         Snapshot& operator=(Snapshot&&) noexcept = default;
         ~Snapshot() = default;
 
     private:
-        void _deepCopy(const Snapshot&);
+        std::unique_ptr<SnapIO> io_;
+        SnapIO& io() { return *io_; }
+        const SnapIO& io() const { return *io_; }
 
-    private:
-        DataBuffer dbuf_{};
+        // only allow memento to use internal io
+        friend class Memento;
     };
 
 public:
     // will generate a Snapshot of current state by _saveToSnapshot
-    Snapshot save();
+    Snapshot save() const
+    {
+        Snapshot s(createBackend());
+        _saveToSnapshot(s);
+        return s;
+    }
     // will base on the Snapshot to restore the state by _loadFromSnapshot
-    void load(const Memento::Snapshot& state);
+    void load(const Memento::Snapshot& state)
+    {
+        Snapshot copy = state;
+        _loadFromSnapshot(copy);
+    }
+
+protected:
+    virtual std::unique_ptr<SnapIO> createBackend() const
+    {
+        return std::make_unique<VectorSnapIO>();
+    }
 
 private:
     virtual void _saveToSnapshot(Snapshot& s) const = 0;
