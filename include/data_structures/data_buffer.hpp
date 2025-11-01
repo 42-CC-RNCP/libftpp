@@ -24,6 +24,11 @@ public:
     // TODO: phase2: support read from file or socket
     // void append_frame(std::span<std::byte> bytes);
 
+    std::size_t tell() const noexcept { return rd_; }
+    void seek(std::size_t pos) {
+        if (pos > buf_.size()) throw std::runtime_error("seek past end");
+        rd_ = pos;
+    }
     const std::byte* data() const;
     std::size_t size() const;
     std::size_t remaining() const noexcept;
