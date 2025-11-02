@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdexcept> // std::runtime_error
 #include <cstddef> // std::byte, std::size_t
 #include <cstring> // std::memcpy
 #include <span>

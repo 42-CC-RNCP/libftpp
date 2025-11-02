@@ -24,6 +24,7 @@ target_include_directories(test_data_structures PRIVATE
 
 add_executable(test_memento
   memento_test.cpp
+  memento_history_test.cpp
 )
 
 # Link against the libs that define Memento/Saveable and TLV/DataBuffer
