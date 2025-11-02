@@ -1,7 +1,6 @@
 // include/design_patterns/memento/memento.hpp
 #pragma once
 #include "snapio.hpp"
-#include <memory>
 #include <utility>
 
 class Memento
@@ -10,25 +9,24 @@ public:
     class Snapshot
     {
     public:
-        Snapshot() : io_(std::make_unique<VectorSnapIO>()) {}
+        Snapshot() : io_(VectorBackend{}) {}
         // force user needs to claim specifically, avoid implicit casting
-        explicit Snapshot(std::unique_ptr<SnapIO> io) : io_(std::move(io)) {}
-        Snapshot(const Snapshot& rhs) : io_(rhs.io_->clone()) {}
-        Snapshot& operator=(const Snapshot& rhs)
+        template <class Backend>
+        explicit Snapshot(Backend b) : io_(std::forward<Backend>(b))
         {
-            if (this != &rhs) {
-                io_ = rhs.io_->clone();
-            }
-            return *this;
         }
+
+        // the SnapIO support copy/move so we can use default here
+        Snapshot(const Snapshot&) = default;
+        Snapshot& operator=(const Snapshot&) = default;
         Snapshot(Snapshot&&) noexcept = default;
         Snapshot& operator=(Snapshot&&) noexcept = default;
         ~Snapshot() = default;
 
     private:
-        std::unique_ptr<SnapIO> io_;
-        SnapIO& io() { return *io_; }
-        const SnapIO& io() const { return *io_; }
+        SnapIO io_;
+        SnapIO& io() { return io_; }
+        const SnapIO& io() const { return io_; }
 
         // only allow memento to use internal io
         friend class Memento;
@@ -50,10 +48,14 @@ public:
     }
 
 protected:
-    virtual std::unique_ptr<SnapIO> createBackend() const
-    {
-        return std::make_unique<VectorSnapIO>();
-    }
+    // provide access to Snapshot's io
+    // eventhough Snapshot is private nested, Memento can access its private members because of friendship
+    // but the derived classes cannot access Snapshot's private members directly
+    // so we provide these static helper functions
+    static SnapIO& stream(Snapshot& s) { return s.io(); }
+    static const SnapIO& stream(const Snapshot& s) { return s.io(); }
+
+    virtual SnapIO createBackend() const { return VectorBackend{}; }
 
 private:
     virtual void _saveToSnapshot(Snapshot& s) const = 0;

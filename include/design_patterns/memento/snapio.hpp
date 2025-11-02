@@ -16,7 +16,7 @@ public:
     template <class Backend>
     SnapIO(Backend&& x) :
         // use decay to remove ref/const qualifer
-        pimpl_{std::make_unique<IOModel<std::decay<Backend>>>(
+        pimpl_{std::make_unique<IOModel<std::decay_t<Backend>>>(
             std::forward<Backend>(x))}
     {
     }
@@ -54,7 +54,7 @@ private:
     template <class Backend> struct IOModel : public IOConcept
     {
         // perfect forwarding to backend constructor
-        IOModel(Backend&& x) : b(std::forward(x)) {}
+        IOModel(Backend&& x) : b(std::forward<Backend>(x)) {}
         void write(const void* p, size_t n) override { b.write(p, n); }
         void read(void* p, size_t n) override { b.read(p, n); }
         size_t tell() const override { return b.tell(); }
@@ -76,29 +76,36 @@ struct VectorBackend
     void write(const void* p, size_t n)
     {
         auto* b = static_cast<const std::byte*>(p);
+        const size_t old = buf_.size();
 
-        if (pos_ + n > buf_.size()) {
-            buf_.resize(pos_ + n);
-        }
-        std::memcpy(buf_.data() + pos_, b, n);
-        pos_ += n;
+        buf_.resize(old + n);
+        std::memcpy(buf_.data() + old, b, n);
     }
 
     void read(void* p, size_t n)
     {
-        std::memcpy(p, buf_.data() + pos_, n);
-        pos_ += n;
+        if (rd_ + n > buf_.size()) {
+            throw std::out_of_range("VectorBackend read overflow");
+        }
+        std::memcpy(p, buf_.data() + rd_, n);
+        rd_ += n;
     }
 
-    size_t tell() const { return pos_; }
+    size_t tell() const { return rd_; }
 
-    void seek(size_t pos) { pos_ = pos; }
+    void seek(size_t pos)
+    {
+        if (pos > buf_.size()) {
+            throw std::out_of_range("VectorBackend seek past end");
+        }
+        rd_ = pos;
+    }
 
     size_t size() const { return buf_.size(); }
 
 private:
     std::vector<std::byte> buf_;
-    size_t pos_{0};
+    size_t rd_{0};
 };
 
 struct DataBufferBackend
@@ -115,9 +122,7 @@ public:
     {
     }
 
-    DataBufferBackend(const DataBufferBackend& rhs) : db_(clone(*rhs.db_))
-    {
-    }
+    DataBufferBackend(const DataBufferBackend& rhs) : db_(clone(*rhs.db_)) {}
 
     DataBufferBackend& operator=(const DataBufferBackend& rhs)
     {
