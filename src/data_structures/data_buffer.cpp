@@ -18,6 +18,19 @@ void DataBuffer::readExact(std::byte* out, std::size_t n)
     rd_ += n;
 }
 
+std::size_t DataBuffer::tell() const noexcept
+{
+    return rd_;
+}
+
+void DataBuffer::seek(std::size_t pos)
+{
+    if (pos > buf_.size()) {
+        throw std::runtime_error("seek past end");
+    }
+    rd_ = pos;
+}
+
 const std::byte* DataBuffer::data() const
 {
     return buf_.data();
