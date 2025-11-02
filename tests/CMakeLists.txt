@@ -22,22 +22,22 @@ target_include_directories(test_data_structures PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
 
-add_executable(test_memento_saveable
-  memento_saveable_test.cpp
+add_executable(test_memento
+  memento_test.cpp
 )
 
 # Link against the libs that define Memento/Saveable and TLV/DataBuffer
-target_link_libraries(test_memento_saveable
+target_link_libraries(test_memento
   PRIVATE
     gtest_main
     design_patterns
     data_structures
 )
 
-target_include_directories(test_memento_saveable PRIVATE
+target_include_directories(test_memento PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
 
 include(GoogleTest)
 gtest_discover_tests(test_data_structures)
-gtest_discover_tests(test_memento_saveable)
+gtest_discover_tests(test_memento)
