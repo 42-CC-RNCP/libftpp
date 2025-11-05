@@ -39,6 +39,22 @@ target_include_directories(test_memento PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
 
+add_executable(test_observer
+  observer_test.cpp
+)
+
+# Link against the libs that define Observer/Subject
+target_link_libraries(test_observer
+  PRIVATE
+    gtest_main
+    design_patterns
+)
+
+target_include_directories(test_observer PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+)
+
 include(GoogleTest)
 gtest_discover_tests(test_data_structures)
 gtest_discover_tests(test_memento)
+gtest_discover_tests(test_observer)
