@@ -1,6 +1,5 @@
 #pragma once
 
-#include "tlv_adapters.hpp"
 #include <cstddef> // std::byte, std::size_t
 #include <cstring> // std::memcpy
 #include <span>
@@ -24,6 +23,8 @@ public:
     // TODO: phase2: support read from file or socket
     // void append_frame(std::span<std::byte> bytes);
 
+    std::size_t tell() const noexcept;
+    void seek(std::size_t pos);
     const std::byte* data() const;
     std::size_t size() const;
     std::size_t remaining() const noexcept;

@@ -1,6 +1,7 @@
-#include "data_buffer.hpp"
-#include "tlv.hpp"
 #include <array>
+#include <data_structures/data_buffer.hpp>
+#include <data_structures/tlv.hpp>
+#include <data_structures/tlv_adapters.hpp>
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>

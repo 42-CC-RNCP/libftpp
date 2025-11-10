@@ -1,4 +1,4 @@
-#include "data_buffer.hpp"
+#include "data_structures/data_buffer.hpp"
 #include <stdexcept> // std::runtime_error
 
 void DataBuffer::writeBytes(std::span<const std::byte> s)
@@ -16,6 +16,19 @@ void DataBuffer::readExact(std::byte* out, std::size_t n)
     }
     std::memcpy(out, buf_.data() + rd_, n);
     rd_ += n;
+}
+
+std::size_t DataBuffer::tell() const noexcept
+{
+    return rd_;
+}
+
+void DataBuffer::seek(std::size_t pos)
+{
+    if (pos > buf_.size()) {
+        throw std::runtime_error("seek past end");
+    }
+    rd_ = pos;
 }
 
 const std::byte* DataBuffer::data() const

@@ -30,12 +30,12 @@ if (CPP_FILES OR GENERATED_CPP_FILES)
     add_dependencies(data_structures data_structures_cpp2_gen)
 
     target_include_directories(data_structures PUBLIC
-        ${PROJECT_SOURCE_DIR}/include/data_structures
+        ${PROJECT_SOURCE_DIR}/include/
     )
 else()
     add_library(data_structures INTERFACE)
 
     target_include_directories(data_structures INTERFACE
-        ${PROJECT_SOURCE_DIR}/include/data_structures
+        ${PROJECT_SOURCE_DIR}/include/
     )
 endif()
