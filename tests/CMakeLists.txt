@@ -54,7 +54,23 @@ target_include_directories(test_observer PRIVATE
   ${PROJECT_SOURCE_DIR}/include
 )
 
+add_executable(test_singleton
+  singleton_test.cpp
+)
+
+# Link against the libs that define Singleton
+target_link_libraries(test_singleton
+  PRIVATE
+    gtest_main
+    design_patterns
+)
+
+target_include_directories(test_singleton PRIVATE
+  ${PROJECT_SOURCE_DIR}/include
+)
+
 include(GoogleTest)
 gtest_discover_tests(test_data_structures)
 gtest_discover_tests(test_memento)
 gtest_discover_tests(test_observer)
+gtest_discover_tests(test_singleton)
