@@ -15,7 +15,6 @@ function(add_libtpp_test name)
   set(TEST_TARGETS ${TEST_TARGETS} ${name} PARENT_SCOPE)
 endfunction()
 
-# ---- 列出各測試 ----
 add_libtpp_test(test_data_structures
   SRCS
     pool_test.cpp
@@ -56,6 +55,12 @@ add_libtpp_test(test_state_machine
     state_machine_test.cpp
   LIBS
     design_patterns
+)
+
+add_libtpp_test(test_thread_safe_iostream
+  SRCS
+    thread_safe_iostream_test.cpp
+  LIBS
 )
 
 foreach(t IN LISTS TEST_TARGETS)
