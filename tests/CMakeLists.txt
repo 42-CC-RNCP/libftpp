@@ -63,6 +63,12 @@ add_libtpp_test(test_thread_safe_iostream
   LIBS
 )
 
+add_libtpp_test(test_thread_safe_queue
+  SRCS
+    thread_safe_queue_test.cpp
+  LIBS
+)
+
 foreach(t IN LISTS TEST_TARGETS)
   gtest_discover_tests(${t}
     DISCOVERY_TIMEOUT 60
