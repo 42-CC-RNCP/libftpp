@@ -18,8 +18,11 @@ public:
         }
         thread_ = std::thread([this]() {
             // here is the worker thread
-            // if the exception is thrown, it will call std::terminate 
+            // if the exception is thrown, it will call std::terminate
             ts_cout.setPrefix("[" + name_ + "] ");
+
+            // the function should be noexcept, otherwise std::terminate is
+            // called
             function_();
         });
     }
@@ -38,7 +41,12 @@ public:
         function_ = functToExecute;
     }
 
-    ~Thread() { stop(); }
+    ~Thread()
+    {
+        // For RAII safety, ensure the thread is joined before destruction
+        stop();
+    }
+
     // Disable copy and move semantics, as threads should not be copied or
     // moved.
     Thread(const Thread&) = delete;
