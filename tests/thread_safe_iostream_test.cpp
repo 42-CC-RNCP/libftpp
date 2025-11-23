@@ -42,9 +42,6 @@ static std::vector<std::string> split_lines(const std::string& s)
     return lines;
 }
 
-// Global thread-local instance for tests
-thread_local ThreadSafeIOStream threadSafeCout;
-
 TEST(ThreadSafeIOStream, EachThreadHasIndependentPrefix)
 {
     CoutCapture cap;

@@ -100,3 +100,7 @@ private:
     std::string prefix_;
     std::ostringstream buffer_;
 };
+
+inline thread_local ThreadSafeIOStream threadSafeCout;
+#define ts_cout threadSafeCout
+#define tsiostream threadSafeCout
