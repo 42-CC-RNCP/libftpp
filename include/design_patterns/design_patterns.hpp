@@ -1,6 +1,6 @@
 #pragma once
 
-#include "design_patterns/memento/memento.hpp"
-#include "design_patterns/observer.hpp"
-#include "design_patterns/singleton.hpp"
-#include "design_patterns/state_machine.hpp"
+#include "memento/memento.hpp"
+#include "observer.hpp"
+#include "singleton.hpp"
+#include "state_machine.hpp"

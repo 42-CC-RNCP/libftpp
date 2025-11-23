@@ -12,6 +12,7 @@ function(add_libtpp_test name)
 
   add_executable(${name} ${T_SRCS})
   target_link_libraries(${name} PRIVATE gtest_main ${T_LIBS})
+
   set(TEST_TARGETS ${TEST_TARGETS} ${name} PARENT_SCOPE)
 endfunction()
 
@@ -79,4 +80,11 @@ foreach(t IN LISTS TEST_TARGETS)
   gtest_discover_tests(${t}
     DISCOVERY_TIMEOUT 60
   )
+  set_property(TARGET ${t} PROPERTY EXCLUDE_FROM_ALL TRUE)
 endforeach()
+
+add_custom_target(libftpp_tests
+  DEPENDS ${TEST_TARGETS}
+)
+
+set_property(TARGET libftpp_tests PROPERTY EXCLUDE_FROM_ALL TRUE)
