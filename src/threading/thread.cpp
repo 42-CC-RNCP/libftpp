@@ -1,4 +1,5 @@
 #include "threading/thread.hpp"
+#include "iostream/thread_safe_iostream.hpp"
 
 Thread::Thread(const std::string& name, std::function<void()> funcToExecute) :
     name_(name), function_(funcToExecute)

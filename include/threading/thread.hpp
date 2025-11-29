@@ -1,9 +1,7 @@
 // include/threading/thread.hpp
 #pragma once
-#include "iostream/thread_safe_iostream.hpp"
 #include <atomic>
 #include <functional>
-#include <stdexcept>
 #include <string>
 #include <thread>
 

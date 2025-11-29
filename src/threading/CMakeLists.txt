@@ -1,9 +1,12 @@
 # src/threading/CMakeLists.txt
 
-add_library(threading INTERFACE)
+add_library(threading STATIC
+    thread.cpp
+    thread_safe_queue.cpp
+)
 
 target_include_directories(threading
-    INTERFACE
+    PUBLIC
         ${PROJECT_SOURCE_DIR}/include
 )
 
