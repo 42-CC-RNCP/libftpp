@@ -35,16 +35,8 @@
 class Thread
 {
 public:
-    Thread(const std::string& name, std::function<void()> funcToExecute) :
-        name_(name), function_(funcToExecute)
-    {
-    }
-
-    ~Thread()
-    {
-        // For RAII safety, ensure the thread is joined before destruction
-        stop();
-    }
+    Thread(const std::string& name, std::function<void()> funcToExecute);
+    ~Thread();
 
     // Disable copy and move semantics, as threads should not be copied or
     // moved.
@@ -53,30 +45,8 @@ public:
     Thread(Thread&&) = delete;
     Thread& operator=(Thread&&) = delete;
 
-    void start()
-    {
-        // exception should be thrown if start() is called more than once
-        if (started_.exchange(true)) {
-            throw std::runtime_error("Thread '" + name_
-                                     + "' has already been started.");
-        }
-        thread_ = std::thread([this]() {
-            // here is the worker thread
-            // if the exception is thrown, it will call std::terminate
-            ts_cout.setPrefix("[" + name_ + "] ");
-
-            // the function should be noexcept, otherwise std::terminate is
-            // called
-            function_();
-        });
-    }
-
-    void stop()
-    {
-        if (thread_.joinable()) {
-            thread_.join();
-        }
-    }
+    void start();
+    void stop();
 
 private:
     std::string name_;
