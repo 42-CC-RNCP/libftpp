@@ -15,6 +15,7 @@ public:
     void push_front(const TType& newElement);
     TType pop_back();
     TType pop_front();
+    bool empty();
 
 private:
     std::deque<TType> queue_;

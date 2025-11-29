@@ -26,8 +26,7 @@ void ThreadSafeQueue<TType>::push_front(const TType& newElement)
     cv_.notify_one();
 }
 
-template <typename TType>
-TType ThreadSafeQueue<TType>::pop_back()
+template <typename TType> TType ThreadSafeQueue<TType>::pop_back()
 {
     // when the exception is thrown, RAII will ensure the mutex is unlocked
     // by stack unwinding
@@ -47,8 +46,7 @@ TType ThreadSafeQueue<TType>::pop_back()
     return element;
 }
 
-template <typename TType>
-TType ThreadSafeQueue<TType>::pop_front()
+template <typename TType> TType ThreadSafeQueue<TType>::pop_front()
 {
     std::unique_lock<std::mutex> lock(mutex_);
     // blocking current thread until queue is not empty and then lock mutex
@@ -58,4 +56,10 @@ TType ThreadSafeQueue<TType>::pop_front()
     TType element = queue_.front();
     queue_.pop_front();
     return element;
+}
+
+template <typename TType> bool ThreadSafeQueue<TType>::empty()
+{
+    std::lock_guard<std::mutex> lock(mutex_);
+    return queue_.empty();
 }
