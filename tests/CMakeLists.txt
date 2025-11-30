@@ -64,6 +64,7 @@ add_libtpp_test(test_threading
     thread_safe_queue_test.cpp
     thread_test.cpp
     worker_pool_test.cpp
+    persistent_worker_test.cpp
   LIBS
     threading
 )
