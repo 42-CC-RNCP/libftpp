@@ -106,6 +106,10 @@ public:
         });
         TType element = queue_.front();
         queue_.pop_front();
+
+        // from C++11 it's guaranteed that return a named variable will use move
+        // semantics if TType has a move ctor, and the move ctor should
+        // nothrow in convention. So it's still strong exception safety.
         return element;
     }
 
