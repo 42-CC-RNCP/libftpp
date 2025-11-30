@@ -58,22 +58,14 @@ add_libtpp_test(test_state_machine
     design_patterns
 )
 
-add_libtpp_test(test_thread_safe_iostream
+add_libtpp_test(test_threading
   SRCS
     thread_safe_iostream_test.cpp
-  LIBS
-)
-
-add_libtpp_test(test_thread_safe_queue
-  SRCS
     thread_safe_queue_test.cpp
-  LIBS
-)
-
-add_libtpp_test(test_thread
-  SRCS
     thread_test.cpp
+    worker_pool_test.cpp
   LIBS
+    threading
 )
 
 foreach(t IN LISTS TEST_TARGETS)
