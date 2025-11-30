@@ -1,7 +1,9 @@
 #pragma once
+#include <atomic>
 #include <condition_variable>
 #include <deque>
 #include <mutex>
+#include <optional>
 
 /*
 Exception-safe thread-safe queue implementation using std::deque.
@@ -16,6 +18,10 @@ public:
         {
             std::lock_guard<std::mutex> lock(mutex_);
 
+            if (closed_.load()) {
+                throw std::runtime_error(
+                    "Cannot push to a closed ThreadSafeQueue.");
+            }
             // TType's copy/move constructor may throw an exception.
             // but the std container guarantees that if an exception is thrown,
             // the container remains unchanged.
@@ -29,10 +35,46 @@ public:
     {
         {
             std::lock_guard<std::mutex> lock(mutex_);
+
+            if (closed_.load()) {
+                throw std::runtime_error(
+                    "Cannot push to a closed ThreadSafeQueue.");
+            }
             queue_.push_front(newElement);
         }
         // notify one waiting thread that an element has been added
         cv_.notify_one();
+    }
+
+    std::optional<TType> pop_back_optional()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this]() {
+            return !queue_.empty() || closed_.load();
+        });
+
+        if (queue_.empty() && closed_.load()) {
+            // queue is closed and empty, return nullopt
+            return std::nullopt;
+        }
+        TType element = queue_.back();
+        queue_.pop_back();
+        return element;
+    }
+
+    std::optional<TType> pop_front_optional()
+    {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this]() {
+            return !queue_.empty() || closed_.load();
+        });
+        if (queue_.empty() && closed_.load()) {
+            // queue is closed and empty, return nullopt
+            return std::nullopt;
+        }
+        TType element = queue_.front();
+        queue_.pop_front();
+        return element;
     }
 
     TType pop_back()
@@ -40,17 +82,17 @@ public:
         // when the exception is thrown, RAII will ensure the mutex is unlocked
         // by stack unwinding
         std::unique_lock<std::mutex> lock(mutex_);
-        // blocking current thread until queue is not empty and then lock mutex
-        // cv_.wait will automatically unlock the mutex while waiting and
-        // re-lock it when notified
+        // blocking current thread until queue is not empty
+        // and then lock mutex cv_.wait will automatically unlock the mutex
+        // while waiting and re-lock it when notified
         // !!condition_variable wait() may throw std::system_error if the mutex
         // is not locked
         cv_.wait(lock, [this]() {
             return !queue_.empty();
         });
-        TType element = queue_.back();
 
         // the copy/move constructor of TType may throw an exception here
+        TType element = queue_.back();
         queue_.pop_back();
         return element;
     }
@@ -73,8 +115,16 @@ public:
         return queue_.empty();
     }
 
+    void close()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        closed_.store(true);
+        cv_.notify_all();
+    }
+
 private:
     std::deque<TType> queue_;
     std::mutex mutex_;
+    std::atomic<bool> closed_{false};
     std::condition_variable cv_;
 };
