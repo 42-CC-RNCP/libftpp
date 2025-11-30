@@ -34,31 +34,23 @@ public:
         for (size_t i = 0; i < numberOfWorkers_; ++i) {
             workers_.emplace_back(std::make_unique<Thread>(
                 "worker_" + std::to_string(i), [this]() {
-                    std::unique_lock<std::mutex> lock(mutex_);
-                    // worker thread loop
-                    // periodically wake up and run if there are jobs in the
-                    // queue and no need to stop
-                    while (cv_.wait_for(lock,
-                                        std::chrono::milliseconds(100),
-                                        [this]() {
-                                            return needToStop_.load()
-                                                   || !jobQueue_.empty();
-                                        }),
-                           !needToStop_.load()) {
-                        std::shared_ptr<IJob> job;
-                        job = jobQueue_.pop_front();
-                        job->execute();
+                    while (true) {
+                        // fetch job from the job queue
+                        auto job = jobQueue_.pop_front_optional();
+                        if (job.has_value() == false) {
+                            // job queue is closed and empty, exit the worker
+                            // thread
+                            break;
+                        }
+                        // execute the job
+                        job->get()->execute();
                     }
                 }));
             workers_.back()->start();
         }
     }
 
-    ~WorkerPool()
-    {
-        needToStop_.store(true);
-        cv_.notify_all();
-    }
+    ~WorkerPool() { stop(); }
 
     void addJob(const std::function<void()>& jobToExecute)
     {
@@ -76,13 +68,25 @@ public:
         jobQueue_.push_back(std::make_shared<JobImpl>(jobToExecute));
     }
 
+    // wait for all worker threads to finish
+    void joinAllWorkers()
+    {
+        for (auto& worker : workers_) {
+            worker->stop();
+        }
+    }
+
+    // stop accepting new jobs and wait for all worker threads to finish
+    void stop()
+    {
+        jobQueue_.close();
+        joinAllWorkers();
+    }
+
 private:
     size_t numberOfWorkers_;
     // job queue shared between main thread and worker threads, so use
     // shared_ptr
     ThreadSafeQueue<std::shared_ptr<IJob>> jobQueue_;
     std::vector<std::unique_ptr<Thread>> workers_;
-    std::atomic<bool> needToStop_{false};
-    std::condition_variable cv_;
-    std::mutex mutex_;
 };
