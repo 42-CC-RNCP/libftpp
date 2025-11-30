@@ -3,6 +3,7 @@
 add_library(threading STATIC
     thread.cpp
     worker_pool.cpp
+    persistent_worker.cpp
 )
 
 target_include_directories(threading
