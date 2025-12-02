@@ -70,6 +70,7 @@ add_libtpp_test(test_threading
 
 foreach(t IN LISTS TEST_TARGETS)
   gtest_discover_tests(${t}
+    TEST_PREFIX "${t}."
     DISCOVERY_TIMEOUT 60
   )
   set_property(TARGET ${t} PROPERTY EXCLUDE_FROM_ALL TRUE)
