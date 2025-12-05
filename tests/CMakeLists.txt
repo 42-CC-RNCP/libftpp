@@ -68,6 +68,14 @@ add_libtpp_test(test_threading
     threading
 )
 
+add_libtpp_test(test_network
+  SRCS
+    message_test.cpp
+  LIBS
+    data_structures
+    network
+)
+
 foreach(t IN LISTS TEST_TARGETS)
   gtest_discover_tests(${t}
     TEST_PREFIX "${t}."

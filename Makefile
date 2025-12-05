@@ -9,7 +9,8 @@ TEST_TARGETS = \
     test_observer \
     test_singleton \
     test_state_machine \
-    test_threading
+    test_threading \
+	test_network
 
 .PHONY: all re clean fclean test cmake_configure help \
         $(MODULES) $(TEST_TARGETS)
