@@ -10,7 +10,7 @@ public:
     ClientHandle(ClientId id, INetworkPort* port) : id_(id), port_(port) {}
 
     ClientId id() const { return id_; }
-    void send(Message&& msg) { port_->sendTo(id_, std::move(msg)); }
+    void send(Message&& msg) { port_->sendTo(std::move(msg), id_); }
     void disconnect() { port_->disconnect(id_); }
 
 private:
