@@ -4,6 +4,7 @@
 
 class Message
 {
+public:
     using Type = int;
 
 public:
