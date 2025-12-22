@@ -25,7 +25,7 @@ public:
 
     std::size_t tell() const noexcept;
     void seek(std::size_t pos);
-    void comsume(std::size_t n);
+    void consume(std::size_t n);
     void compact();
     const std::byte* data() const;
     std::size_t size() const;
