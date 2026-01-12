@@ -1,4 +1,4 @@
-#include "i_stream_transport.hpp"
+#include "stream_transport.hpp"
 #include <arpa/inet.h>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -13,7 +13,7 @@ public:
     void connect(const Endpoint& ep) override
     {
         // create socket
-        int sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
+        sockfd_ = ::socket(AF_INET, SOCK_STREAM, 0);
         if (sockfd_ < 0) {
             throw std::runtime_error("Failed to create socket");
         }
@@ -31,16 +31,16 @@ public:
             close(sockfd_);
             throw std::runtime_error("Failed to connect to server");
         }
-
         connected_ = true;
     }
 
     void disconnect() override
     {
         if (connected_) {
-            close(sockfd_);
-            connected_ = false;
+            ::close(sockfd_);
         }
+        sockfd_ = -1;
+        connected_ = false;
     }
 
     ssize_t recvBytes(std::byte* buf, size_t len) override
@@ -48,7 +48,7 @@ public:
         if (!connected_) {
             throw std::runtime_error("Not connected");
         }
-        return recv(sockfd_, buf, len, 0);
+        return ::recv(sockfd_, buf, len, 0);
     }
 
     ssize_t sendBytes(const std::byte* data, size_t len) override
@@ -56,12 +56,12 @@ public:
         if (!connected_) {
             throw std::runtime_error("Not connected");
         }
-        return send(sockfd_, data, len, 0);
+        return ::send(sockfd_, data, len, 0);
     }
 
     bool isConnected() const override { return connected_; }
 
 private:
-    int sockfd_;
-    bool connected_;
+    int sockfd_{-1};
+    bool connected_{false};
 };
