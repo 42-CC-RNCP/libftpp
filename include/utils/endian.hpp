@@ -24,6 +24,19 @@ inline T read_endian(std::span<const std::byte> bytes, std::endian target)
     }
     return value;
 }
+
+template <typename T>
+inline T write_endian(T value, std::span<std::byte> bytes, std::endian target)
+{
+    static_assert(std::is_integral_v<T>, "T must be integral type");
+
+    if (target != std::endian::native) {
+        value = std::byteswap(value);
+    }
+    std::memcpy(bytes.data(), &value, sizeof(T));
+    return value;
+}
+
 #endif
 
 // little-endian read
