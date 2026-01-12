@@ -1,74 +1,104 @@
 #pragma once
-#include "client_handle.hpp"
-#include "data_structures/data_buffer.hpp"
-#include "dispatcher.hpp"
-#include "i_message_codec.hpp"
-#include "i_stream_transport.hpp"
+#include "byte_queue_adapter.hpp"
+#include "message_codec.hpp"
+#include "stream_transport.hpp"
 
 // handle a connection all I/O operations
 class Connection
 {
 public:
-    IStreamTransport& transport;
-    IMessageCodec& codec;
-    Dispatcher& dispatcher;
-    DataBuffer readBuf;
-    DataBuffer writeBuf;
-    ClientHandle handle;
+    enum class IoStatus
+    {
+        Ok,
+        Closed,
+        Error
+    };
 
-    Connection(IStreamTransport& t,
-               IMessageCodec& c,
-               Dispatcher& d,
-               ClientHandle h) :
-        transport(t), codec(c), dispatcher(d), handle(h)
+    struct IoResult
+    {
+        IoStatus status{IoStatus::Ok};
+        std::size_t bytes{0}; // success bytes count
+        int sys_errno{0};     // errno if error occurs
+        std::string error_msg;
+    };
+
+    size_t CHUNK_SIZE = 4096;
+
+public:
+    Connection(IStreamTransport& t, IMessageCodec& c) : codec_(c), transport_(t)
     {
     }
 
+    void connect(Endpoint& ep) { transport_.connect(ep); }
+
+    void queue(const Message& msg) { codec_.encode(msg, tx_); }
+
+    DecodeResult tryDecode(Message& out) { return codec_.tryDecode(rx_, out); }
+
     // OS/socket is ready to read (e.g. epoll IN event)
-    void onReadable()
+    IoResult onReadable()
     {
-        std::byte buf[4096];
+        std::byte buf[CHUNK_SIZE];
         // read data from transport to readBuf
-        size_t n = transport.recvBytes(buf, sizeof(buf));
+        ssize_t n = transport_.recvBytes(buf, sizeof(buf));
 
         if (n < 0) {
-            // handle error
-            throw std::runtime_error("Error reading from transport");
+            return {IoStatus::Error, 0, errno, "Error reading from transport"};
         }
         else if (n == 0) {
             // connection closed
-            transport.disconnect();
-            return;
+            transport_.disconnect();
+            closed_ = true;
+            return {IoStatus::Closed, 0, 0, "Connection closed by peer"};
         }
         // append received data to read data buffer
-        readBuf << buf;
+        rx_.append(std::span<const std::byte>(buf, (size_t)n));
+
+        return {IoStatus::Ok, (size_t)n, 0, ""};
     }
 
     // OS/socket is ready to write (e.g. epoll OUT event)
-    void onWritable()
+    IoResult onWritable()
     {
-        if (writeBuf.size() == 0) {
-            return; // nothing to write
+        if (closed_) {
+            return {IoStatus::Closed, 0, 0, "Connection is closed"};
+        }
+        if (tx_.remaining() == 0) {
+            // nothing to write
+            return {IoStatus::Ok, 0, 0, ""};
         }
 
         // send data from writeBuf to transport
-        size_t n = transport.sendBytes(writeBuf.data(), writeBuf.size());
+        ssize_t n = transport_.sendBytes(tx_.data(), tx_.remaining());
 
         if (n < 0) {
-            // handle error
-            throw std::runtime_error("Error writing to transport");
+            return {IoStatus::Error, 0, errno, "Error writing to transport"};
         }
         else if (n == 0) {
             // connection closed
-            transport.disconnect();
-            return;
+            transport_.disconnect();
+            closed_ = true;
+            return {IoStatus::Closed, 0, 0, "Connection closed by peer"};
         }
-        // remove sent data from write buffer
-        writeBuf.seek(n);
+        // consume sent data from write buffer
+        tx_.consume((size_t)n);
 
-        // compact the write buffer if more than half is consumed
-        if (writeBuf.tell() > writeBuf.size() / 2) {
-            writeBuf.compact();
-        }
+        return {IoStatus::Ok, (size_t)n, 0, ""};
     }
+
+    bool isClosed() const { return closed_; }
+    bool wantsWrite() const { return tx_.remaining() > 0; }
+
+private:
+    IMessageCodec& codec_;
+    IStreamTransport& transport_;
+
+    DataBufferByteQueue rx_;
+    DataBufferByteQueue tx_;
+
+    // TODO: consider threading model
+    // ThreadSafeQueue<Message> inbox_;
+    // ThreadSafeQueue<DataBuffer> outbox_;
+
+    bool closed_{false};
 };
