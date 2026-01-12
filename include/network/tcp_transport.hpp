@@ -1,3 +1,4 @@
+#pragma once
 #include "stream_transport.hpp"
 #include <arpa/inet.h>
 #include <stdexcept>

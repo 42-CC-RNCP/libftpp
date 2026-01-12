@@ -9,6 +9,8 @@ class PeerHandle
 public:
     using PeerId = long long;
 
+    PeerHandle(PeerId id, INetworkPort* port) : id_(id), port_(port) {}
+
     PeerId id() const;
     void send(Message&& msg);
     void disconnect();
