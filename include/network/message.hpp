@@ -1,6 +1,5 @@
 #pragma once
-#include "data_structures/data_buffer.hpp"
-#include "data_structures/tlv_adapters.hpp"
+#include "byte_queue_adapter.hpp"
 
 class Message
 {
@@ -8,8 +7,11 @@ public:
     using Type = int;
 
 public:
-    Message(int type) : type_(type) {}
+    Message(int type) : type_(type), buf_() {}
+
     int type() const { return type_; }
+    DataBufferByteQueue& payload() { return buf_; }
+    const DataBufferByteQueue& payload() const { return buf_; }
 
     template <typename T> Message& operator<<(const T& v)
     {
@@ -44,5 +46,5 @@ public:
 
 private:
     Type type_;
-    DataBuffer buf_;
+    DataBufferByteQueue buf_;
 };
