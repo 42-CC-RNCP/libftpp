@@ -1,5 +1,5 @@
 #pragma once
-#include "data_structures/data_buffer.hpp"
+#include "byte_queue.hpp"
 #include "message.hpp"
 #include <string>
 
@@ -21,7 +21,7 @@ struct DecodeResult
 class IMessageCodec
 {
 public:
-    virtual void encode(const Message& msg, DataBuffer& out) = 0;
-    virtual DecodeResult tryDecode(DataBuffer& in, Message& outMsg) = 0;
+    virtual void encode(const Message& msg, ByteQueue& out) = 0;
+    virtual DecodeResult tryDecode(ByteQueue& in, Message& outMsg) = 0;
     virtual ~IMessageCodec() {}
 };
