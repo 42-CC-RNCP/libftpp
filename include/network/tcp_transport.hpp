@@ -7,8 +7,9 @@
 class TCPTransport : public IStreamTransport
 {
 public:
-    TCPTransport();
-    ~TCPTransport();
+    TCPTransport() : sockfd_(-1), connected_(false) {}
+    TCPTransport(int fd) : sockfd_(fd), connected_(fd >= 0) {}
+    ~TCPTransport() { disconnect(); }
 
     void connect(const Endpoint& ep) override
     {
@@ -62,6 +63,6 @@ public:
     bool isConnected() const override { return connected_; }
 
 private:
-    int sockfd_{-1};
-    bool connected_{false};
+    int sockfd_;
+    bool connected_;
 };
