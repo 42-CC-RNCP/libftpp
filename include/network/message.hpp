@@ -9,9 +9,13 @@ public:
 public:
     Message(int type) : type_(type), buf_() {}
 
-    int type() const { return type_; }
-    DataBufferByteQueue& payload() { return buf_; }
-    const DataBufferByteQueue& payload() const { return buf_; }
+    // property-like movable accessors
+    Type& type() noexcept { return type_; }
+    const Type& type() const noexcept { return type_; }
+    DataBufferByteQueue& payload() noexcept { return buf_; }
+    const DataBufferByteQueue& payload() const noexcept { return buf_; }
+    void payload(DataBufferByteQueue&& p) noexcept { buf_ = std::move(p); }
+    void payload(std::vector<std::byte>&& bytes) { buf_.reset(std::move(bytes)); }
 
     template <typename T> Message& operator<<(const T& v)
     {
