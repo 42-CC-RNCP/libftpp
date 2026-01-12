@@ -26,6 +26,13 @@ public:
     }
     void compact() override { b_.compact(); }
 
+    void reset(std::vector<std::byte>&& bytes)
+    {
+        b_.clear();
+        b_.writeBytes(bytes);
+        b_.seek(0);
+    }
+
 private:
     DataBuffer b_;
 };
