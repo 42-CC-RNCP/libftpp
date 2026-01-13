@@ -1,5 +1,6 @@
 #pragma once
 #include "byte_queue_adapter.hpp"
+#include "data_structures/tlv_adapters.hpp"
 
 class Message
 {
@@ -15,16 +16,21 @@ public:
     DataBufferByteQueue& payload() noexcept { return buf_; }
     const DataBufferByteQueue& payload() const noexcept { return buf_; }
     void payload(DataBufferByteQueue&& p) noexcept { buf_ = std::move(p); }
-    void payload(std::vector<std::byte>&& bytes) { buf_.reset(std::move(bytes)); }
+    void payload(std::vector<std::byte>&& bytes)
+    {
+        buf_.reset(std::move(bytes));
+    }
 
     template <typename T> Message& operator<<(const T& v)
     {
+        using namespace tlv_adapt;
         buf_ << v;
         return *this;
     }
 
     template <typename T> Message& operator>>(T& v)
     {
+        using namespace tlv_adapt;
         buf_ >> v;
         return *this;
     }

@@ -1,6 +1,7 @@
 #pragma once
 #include "message.hpp"
 #include <functional>
+#include <stdexcept>
 #include <utility>
 
 template <typename Context>
