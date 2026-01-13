@@ -21,14 +21,14 @@ public:
         // write length (big-endian)
         std::byte lenBytes[4];
         utils::write_endian<std::uint32_t>(
-            totalLen, {lenBytes, 4}, std::endian::big);
-        out.append({lenBytes, 4});
+            totalLen, std::span<std::byte>{lenBytes}, std::endian::big);
+        out.append(std::span<std::byte>{lenBytes});
 
         // write type (big-endian)
         std::byte typeBytes[4];
         utils::write_endian<std::uint32_t>(
-            msg.type(), {typeBytes, 4}, std::endian::big);
-        out.append({typeBytes, 4});
+            msg.type(), std::span<std::byte>{typeBytes}, std::endian::big);
+        out.append(std::span<std::byte>{typeBytes});
 
         // write payload
         if (msg.payload().remaining() > 0) {
