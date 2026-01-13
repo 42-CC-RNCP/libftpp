@@ -10,7 +10,6 @@ namespace utils
 {
 
 // generic endian read/write (C++23 and later)
-#if __cplusplus >= 202302L
 template <typename T>
 inline T read_endian(std::span<const std::byte> bytes, std::endian target)
 {
@@ -36,8 +35,6 @@ inline T write_endian(T value, std::span<std::byte> bytes, std::endian target)
     std::memcpy(bytes.data(), &value, sizeof(T));
     return value;
 }
-
-#endif
 
 // little-endian read
 inline std::uint32_t read_uint32_le(std::span<const std::byte> bytes)
