@@ -93,7 +93,7 @@ public:
         for (ClientId id : pendingClose_) {
             auto it = sessions_.find(id);
             if (it != sessions_.end()) {
-                it->second->transport->disconnect();
+                it->second->conn.close();
                 sessions_.erase(it);
             }
         }
@@ -125,7 +125,8 @@ private:
         // process incoming messages
         auto io = s.conn.onReadable();
 
-        if (io.status != Connection::IoStatus::Ok) {
+        if (io.status == Connection::IoStatus::Closed
+            || io.status == Connection::IoStatus::Error) {
             _closeLater(s.id);
             return;
         }
@@ -157,7 +158,8 @@ private:
         if (s.conn.wantsWrite()) {
             auto wo = s.conn.onWritable();
 
-            if (wo.status != Connection::IoStatus::Ok) {
+            if (wo.status == Connection::IoStatus::Closed
+                || wo.status == Connection::IoStatus::Error) {
                 _closeLater(s.id);
                 return;
             }
