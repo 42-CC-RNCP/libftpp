@@ -11,6 +11,7 @@ public:
     {
         Ok,
         Closed,
+        WouldBlock,
         Error
     };
 
@@ -22,7 +23,7 @@ public:
         std::string error_msg;
     };
 
-    size_t CHUNK_SIZE = 4096;
+    static constexpr size_t CHUNK_SIZE = 4096;
 
 public:
     Connection(IStreamTransport& t, IMessageCodec& c) : codec_(c), transport_(t)
@@ -38,21 +39,23 @@ public:
     // OS/socket is ready to read (e.g. epoll IN event)
     IoResult onReadable()
     {
-        std::byte buf[CHUNK_SIZE];
+        std::array<std::byte, CHUNK_SIZE> buf{};
         // read data from transport to readBuf
-        ssize_t n = transport_.recvBytes(buf, sizeof(buf));
+        ssize_t n = transport_.recvBytes(buf.data(), buf.size());
 
         if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                return {IoStatus::WouldBlock, 0, 0, ""};
+            }
             return {IoStatus::Error, 0, errno, "Error reading from transport"};
         }
         else if (n == 0) {
             // connection closed
-            transport_.disconnect();
-            closed_ = true;
+            close();
             return {IoStatus::Closed, 0, 0, "Connection closed by peer"};
         }
         // append received data to read data buffer
-        rx_.append(std::span<const std::byte>(buf, (size_t)n));
+        rx_.append(std::span<const std::byte>(buf.data(), (size_t)n));
 
         return {IoStatus::Ok, (size_t)n, 0, ""};
     }
@@ -72,12 +75,14 @@ public:
         ssize_t n = transport_.sendBytes(tx_.data(), tx_.remaining());
 
         if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                return {IoStatus::WouldBlock, 0, 0, ""};
+            }
             return {IoStatus::Error, 0, errno, "Error writing to transport"};
         }
         else if (n == 0) {
             // connection closed
-            transport_.disconnect();
-            closed_ = true;
+            close();
             return {IoStatus::Closed, 0, 0, "Connection closed by peer"};
         }
         // consume sent data from write buffer
@@ -88,6 +93,13 @@ public:
 
     bool isClosed() const { return closed_; }
     bool wantsWrite() const { return tx_.remaining() > 0; }
+    void close()
+    {
+        if (!closed_) {
+            transport_.disconnect();
+            closed_ = true;
+        }
+    }
 
 private:
     IMessageCodec& codec_;
