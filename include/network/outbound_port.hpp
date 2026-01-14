@@ -1,12 +1,12 @@
 #pragma once
 #include "connection.hpp"
 
-
-class OutboundPort {
+class OutboundPort
+{
 public:
-    explicit OutboundPort(Connection& c);
-    void send(Message&& msg);      // direct: conn.queue(...)
-    void disconnect();
+    explicit OutboundPort(Connection& c) : conn_(&c) {}
+    void send(Message&& msg) { conn_->queue(std::move(msg)); }
+    void disconnect() { conn_->close(); }
 
 private:
     Connection* conn_;
