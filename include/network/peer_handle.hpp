@@ -11,9 +11,9 @@ public:
 
     PeerHandle(PeerId id, INetworkPort* port) : id_(id), port_(port) {}
 
-    PeerId id() const;
-    void send(Message&& msg);
-    void disconnect();
+    PeerId id() const { return id_; }
+    void send(Message&& msg) { port_->sendTo(msg, id_); }
+    void disconnect() { port_->disconnect(id_); }
 
 private:
     PeerId id_;
