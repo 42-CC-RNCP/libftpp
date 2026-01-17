@@ -76,7 +76,7 @@ public:
         }
     }
 
-    void defineAction(Message::Type& t, ClientHandler& h)
+    void defineAction(Message::Type& t, const ClientHandler& h)
     {
         dispatcher_.defineRawAction(t, h);
     }
