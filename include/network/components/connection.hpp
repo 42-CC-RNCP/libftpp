@@ -1,7 +1,8 @@
+// network/components/connection.hpp
 #pragma once
-#include "byte_queue_adapter.hpp"
-#include "message_codec.hpp"
-#include "stream_transport.hpp"
+#include "network/contracts/message_codec.hpp"
+#include "network/contracts/stream_transport.hpp"
+#include "network/impl/buffer/byte_queue_adapter.hpp"
 
 // handle a connection all I/O operations
 class Connection

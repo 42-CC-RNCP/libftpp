@@ -1,5 +1,6 @@
+// network/components/dispatcher.hpp
 #pragma once
-#include "message.hpp"
+#include "network/core/message.hpp"
 #include <functional>
 #include <stdexcept>
 #include <utility>

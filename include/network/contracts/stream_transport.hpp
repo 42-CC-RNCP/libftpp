@@ -1,5 +1,6 @@
+// network/contracts/stream_transport.hpp
 #pragma once
-#include "endpoint.hpp"
+#include "network/core/endpoint.hpp"
 #include <cstddef>
 #include <cstdio>
 
@@ -14,5 +15,6 @@ struct IStreamTransport
     virtual ssize_t recvBytes(std::byte* buf, size_t len) = 0;
 
     virtual bool isConnected() const = 0;
+    virtual int nativeHandle() const = 0;
     virtual ~IStreamTransport() {}
 };

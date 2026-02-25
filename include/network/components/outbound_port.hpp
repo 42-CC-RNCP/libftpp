@@ -1,5 +1,6 @@
+// network/components/outbound_port.hpp
 #pragma once
-#include "connection.hpp"
+#include "network/components/connection.hpp"
 
 class OutboundPort
 {

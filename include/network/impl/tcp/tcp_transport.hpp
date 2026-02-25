@@ -1,5 +1,6 @@
+// network/impl/tcp/tcp_transport.hpp
 #pragma once
-#include "stream_transport.hpp"
+#include "network/contracts/stream_transport.hpp"
 #include <arpa/inet.h>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -62,6 +63,8 @@ public:
     }
 
     bool isConnected() const override { return connected_; }
+
+    int nativeHandle() const override { return sockfd_; }
 
 private:
     int sockfd_;

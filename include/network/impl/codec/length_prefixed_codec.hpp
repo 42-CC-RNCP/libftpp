@@ -1,44 +1,58 @@
+// network/impl/codec/length_prefixed_codec.hpp
 #pragma once
-#include "message_codec.hpp"
+#include "network/contracts/message_codec.hpp"
 #include "utils/endian.hpp"
 #include <cstddef>
 #include <cstdint>
-#include <exception>
 #include <stdexcept>
 
-// A simple length-prefixed codec implementation.
-// Message format:
-// [4 bytes length][4 bytes type][payload]
 class LengthPrefixedCodec : public IMessageCodec
 {
 public:
     void encode(const Message& msg, ByteQueue& out) override
     {
-        // calculate total length = type bytes + payload bytes
-        std::uint32_t totalLen =
-            kTypeBytes + static_cast<std::uint32_t>(msg.payload().remaining());
+        const auto& payload = msg.bytes();
 
-        // write length (big-endian)
+        std::uint32_t totalLen =
+            kTypeBytes + static_cast<std::uint32_t>(payload.size());
+
         std::byte lenBytes[4];
         utils::write_endian<std::uint32_t>(
             totalLen, std::span<std::byte>{lenBytes}, std::endian::big);
         out.append(std::span<std::byte>{lenBytes});
 
-        // write type (big-endian)
         std::byte typeBytes[4];
         utils::write_endian<std::uint32_t>(
             msg.type(), std::span<std::byte>{typeBytes}, std::endian::big);
         out.append(std::span<std::byte>{typeBytes});
 
-        // write payload
-        if (msg.payload().remaining() > 0) {
-            out.append(msg.payload().peek());
+        if (!payload.empty()) {
+            out.append(std::span<const std::byte>{payload});
         }
     }
 
+    DecodeResult tryDecode(ByteQueue& in, Message& outMsg) override
+    {
+        if (in.remaining() < kHeaderBytes) {
+            return {
+                DecodeStatus::NeedMoreData, -1, "Not enough data for header"};
+        }
+        try {
+            decode(in, outMsg);
+        }
+        catch (const std::exception& e) {
+            return {DecodeStatus::Invalid,
+                    -1,
+                    "Failed to decode: " + std::string(e.what())};
+        }
+        return {DecodeStatus::Ok, 0, ""};
+    }
+
+private:
     void decode(ByteQueue& in, Message& outMsg)
     {
         auto view = in.peek();
+
         std::uint32_t len = utils::read_endian<std::uint32_t>(
             view.subspan(0, kLenBytes), std::endian::big);
 
@@ -61,35 +75,13 @@ public:
             payload.assign(payloadView.begin(), payloadView.end());
         }
 
-        outMsg.type() = type;
-        outMsg.payload(std::move(payload));
+        Message decoded(type);
+        decoded.setBytes(std::move(payload));
+        outMsg = std::move(decoded);
+
         in.consume(totalBytes);
     }
 
-    DecodeResult tryDecode(ByteQueue& in, Message& outMsg) override
-    {
-        // strong exception guarantee
-        if (in.remaining() < kHeaderBytes) {
-            return {
-                DecodeStatus::NeedMoreData, -1, "Not enough data for header"};
-        }
-        try {
-            decode(in, outMsg);
-        }
-        catch (std::exception& e) {
-            return {DecodeStatus::Invalid,
-                    -1,
-                    "Failed to decode message: " + std::string(e.what())};
-        }
-        catch (...) {
-            return {DecodeStatus::Invalid,
-                    -1,
-                    "Failed to decode message: unknown error"};
-        }
-        return {DecodeStatus::Ok, 0, ""};
-    }
-
-private:
     static constexpr std::size_t kLenBytes = 4;
     static constexpr std::size_t kTypeBytes = 4;
     static constexpr std::size_t kHeaderBytes = kLenBytes + kTypeBytes;

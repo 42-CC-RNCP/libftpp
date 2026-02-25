@@ -1,10 +1,11 @@
+// network/components/client.hpp
 #pragma once
 #include "connection.hpp"
 #include "dispatcher.hpp"
-#include "message.hpp"
-#include "message_codec.hpp"
+#include "network/contracts/message_codec.hpp"
+#include "network/contracts/stream_transport.hpp"
+#include "network/core/message.hpp"
 #include "outbound_port.hpp"
-#include "stream_transport.hpp"
 #include <cstdio>
 #include <functional>
 #include <stdexcept>
@@ -38,8 +39,8 @@ public:
         // encode the message and write to the write buffer
         connection_.queue(msg);
 
-        // // notify the transport that there is data to write
-        // connection_.onWritable();
+        // notify the transport that there is data to write
+        connection_.onWritable();
     }
 
     // recv -> codec -> dispatcher

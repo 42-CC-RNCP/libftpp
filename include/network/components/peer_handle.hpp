@@ -1,6 +1,7 @@
+// network/components/peer_handle.hpp
 #pragma once
-#include "message.hpp"
-#include "network_port.hpp"
+#include "network/contracts/network_port.hpp"
+#include "network/core/message.hpp"
 
 // the limit functions that server can use to interact with clients
 // avoid the server to directly modify the client

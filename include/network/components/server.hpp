@@ -1,9 +1,11 @@
+// network/components/server.hpp
 #pragma once
-#include "acceptor.hpp"
 #include "connection.hpp"
 #include "dispatcher.hpp"
-#include "message.hpp"
-#include "network_port.hpp"
+#include "network/contracts/acceptor.hpp"
+#include "network/contracts/network_port.hpp"
+#include "network/contracts/reactor.hpp"
+#include "network/core/message.hpp"
 #include "peer_handle.hpp"
 #include <functional>
 #include <memory>
@@ -41,14 +43,23 @@ class Server : public INetworkPort
 
 public:
     Server(std::unique_ptr<IAcceptor> acceptor,
+           std::unique_ptr<IReactor> reactor,
            std::function<std::unique_ptr<IMessageCodec>()> codecFactory) :
-        acceptor_(std::move(acceptor)), codecFactory_(std::move(codecFactory))
+        acceptor_(std::move(acceptor)),
+        reactor_(std::move(reactor)),
+        codecFactory_(std::move(codecFactory))
     {
     }
 
     void start(const size_t& p_port)
     {
         acceptor_->listen(static_cast<std::uint16_t>(p_port));
+
+        // register listening socket to reactor
+        reactor_->add(
+            acceptor_->nativeHandle(), IoEvent::Readable, [this](int, IoEvent) {
+                _onAccept();
+            });
     }
 
     void defineAction(const Message::Type& t, ServerHandler h)
@@ -62,6 +73,7 @@ public:
 
         if (it != sessions_.end()) {
             it->second->conn.queue(message);
+            _updateSessionEvents(*it->second);
         }
     }
 
@@ -69,6 +81,7 @@ public:
     {
         for (auto& [id, session] : sessions_) {
             session->conn.queue(message);
+            _updateSessionEvents(*session);
         }
     }
 
@@ -88,39 +101,52 @@ public:
         for (auto& [id, session] : sessions_) {
             _processSession(*session);
         }
-
-        // erase pending closes after iteration
-        for (ClientId id : pendingClose_) {
-            auto it = sessions_.find(id);
-            if (it != sessions_.end()) {
-                it->second->conn.close();
-                sessions_.erase(it);
-            }
-        }
-        pendingClose_.clear();
     }
 
 private:
-    void _acceptNewConnections()
+    void _onAccept()
     {
-        while (true) {
-            auto t = acceptor_->tryAccept();
+        while (auto t = acceptor_->tryAccept()) {
+            ClientId id = nextId_++;
+            int fd = t->nativeHandle();
 
-            if (!t) {
-                break; // No more pending connections
-            }
-
-            ClientId id = nextId++;
             auto codec = codecFactory_();
             auto session = std::make_unique<Session>(
                 id, this, std::move(t), std::move(codec));
             sessions_.emplace(id, std::move(session));
+
+            // register event for the client session to reactor
+            reactor_->add(fd, IoEvent::Readable, [this, id](int, IoEvent ev) {
+                _onSessionEvent(id, ev);
+            });
         }
     }
 
-    void _closeLater(ClientId id) { pendingClose_.push_back(id); }
+    void _onSessionEvent(ClientId id, IoEvent events)
+    {
+        auto it = sessions_.find(id);
+        if (it == sessions_.end()) {
+            return;
+        }
 
-    void _processSession(Session& s)
+        Session& s = *it->second;
+
+        if (hasEvent(events, IoEvent::Error)
+            || hasEvent(events, IoEvent::Closed)) {
+            _closeLater(id);
+            return;
+        }
+
+        if (hasEvent(events, IoEvent::Readable)) {
+            _processSessionRead(s);
+        }
+
+        if (hasEvent(events, IoEvent::Writable)) {
+            _processSessionWrite(s);
+        }
+    }
+
+    void _processSessionRead(Session& s)
     {
         // process incoming messages
         auto io = s.conn.onReadable();
@@ -153,7 +179,10 @@ private:
                 return;
             }
         }
+    }
 
+    void _processSessionWrite(Session& s)
+    {
         // process outgoing messages
         if (s.conn.wantsWrite()) {
             auto wo = s.conn.onWritable();
@@ -166,11 +195,41 @@ private:
         }
     }
 
+    void _processPendingClose()
+    {
+        for (ClientId id : pendingClose_) {
+            auto it = sessions_.find(id);
+            if (it != sessions_.end()) {
+                int fd = it->second->transport->nativeHandle();
+
+                // remove the client session from reactor
+                reactor_->remove(fd);
+                // close the connection
+                it->second->conn.close();
+                sessions_.erase(it);
+            }
+        }
+        pendingClose_.clear();
+    }
+
+    void _updateSessionEvents(Session& s)
+    {
+        IoEvent events = IoEvent::Readable;
+        if (s.conn.wantsWrite()) {
+            events = static_cast<IoEvent>(
+                static_cast<int>(events) | static_cast<int>(IoEvent::Writable));
+        }
+        reactor_->modify(s.transport->nativeHandle(), events);
+    }
+
+    void _closeLater(ClientId id) { pendingClose_.push_back(id); }
+
 private:
     std::unique_ptr<IAcceptor> acceptor_;
+    std::unique_ptr<IReactor> reactor_;
     std::function<std::unique_ptr<IMessageCodec>()> codecFactory_;
     std::unordered_map<ClientId, std::unique_ptr<Session>> sessions_;
     ServerDispatcher dispatcher_;
     std::vector<ClientId> pendingClose_;
-    ClientId nextId{0};
+    ClientId nextId_{0};
 };

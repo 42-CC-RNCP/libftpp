@@ -1,3 +1,4 @@
+// network/contracts/acceptor.hpp
 #pragma once
 #include "stream_transport.hpp"
 #include <cstdint>

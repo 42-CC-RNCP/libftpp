@@ -1,6 +1,7 @@
+// network/contracts/message_codec.hpp
 #pragma once
 #include "byte_queue.hpp"
-#include "message.hpp"
+#include "network/core/message.hpp"
 #include <string>
 
 enum class DecodeStatus

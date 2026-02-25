@@ -1,5 +1,6 @@
+// network/contracts/network_port.hpp
 #pragma once
-#include "message.hpp"
+#include "network/core/message.hpp"
 
 struct INetworkPort
 {

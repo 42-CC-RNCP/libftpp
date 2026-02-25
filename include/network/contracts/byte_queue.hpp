@@ -1,3 +1,4 @@
+// network/contracts/byte_queue.hpp
 #pragma once
 #include <cstddef>
 #include <span>
