@@ -4,5 +4,10 @@ add_library(design_patterns INTERFACE)
 
 target_include_directories(design_patterns
     INTERFACE
-        ${PROJECT_SOURCE_DIR}/include
+        ${LIBFTPP_INCLUDE_DIR}
+)
+
+target_link_libraries(design_patterns
+    INTERFACE
+        data_structures
 )

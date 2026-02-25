@@ -18,6 +18,8 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 # ---- Module libraries ----
+set(LIBFTPP_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
+
 add_subdirectory(src/data_structures)
 add_subdirectory(src/design_patterns)
 add_subdirectory(src/iostream)
@@ -29,7 +31,7 @@ add_library(libftpp INTERFACE)
 
 target_include_directories(libftpp
     INTERFACE
-        ${PROJECT_SOURCE_DIR}/include
+        ${LIBFTPP_INCLUDE_DIR}
 )
 
 target_link_libraries(libftpp
@@ -44,3 +46,6 @@ target_link_libraries(libftpp
 
 # ---- Tests ----
 add_subdirectory(tests)
+
+file(WRITE "${CMAKE_SOURCE_DIR}/.clangd"
+"CompileFlags:\n  CompilationDatabase: build\n  Add: [-I${CMAKE_SOURCE_DIR}/include]\n")

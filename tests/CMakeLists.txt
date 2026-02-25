@@ -12,6 +12,7 @@ function(add_libtpp_test name)
 
   add_executable(${name} ${T_SRCS})
   target_link_libraries(${name} PRIVATE gtest_main ${T_LIBS})
+  target_link_libraries(${name} PRIVATE GTest::gtest GTest::gmock GTest::gtest_main)
 
   set(TEST_TARGETS ${TEST_TARGETS} ${name} PARENT_SCOPE)
 endfunction()
@@ -70,7 +71,16 @@ add_libtpp_test(test_threading
 
 add_libtpp_test(test_network
   SRCS
-    message_test.cpp
+    # message_test.cpp
+    # byte_queue_test.cpp
+    # length_prefixed_codec_test.cpp
+    # connection_test.cpp
+    # dispatcher_test.cpp
+    # tcp_transport_test.cpp
+    # tcp_acceptor_test.cpp
+    # client_test.cpp
+    # server_test.cpp
+    network_integration_test.cpp
   LIBS
     data_structures
     network

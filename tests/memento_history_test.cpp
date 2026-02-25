@@ -1,7 +1,7 @@
 // tests/memento_history_test.cpp
-#include <data_structures/tlv_adapters.hpp>
 #include <design_patterns/memento/history.hpp>
 #include <design_patterns/memento/memento.hpp>
+#include <design_patterns/memento/tlv_adapters.hpp>
 #include <gtest/gtest.h>
 
 class Player : public Memento
