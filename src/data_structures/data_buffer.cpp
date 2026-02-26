@@ -18,7 +18,7 @@ void DataBuffer::readExact(std::byte* out, std::size_t n)
     rd_ += n;
 }
 
-void DataBuffer::comsume(std::size_t n)
+void DataBuffer::consume(std::size_t n)
 {
     if (n > remaining()) {
         throw std::runtime_error("underflow");
@@ -63,7 +63,7 @@ void DataBuffer::seek(std::size_t pos)
 
 const std::byte* DataBuffer::data() const
 {
-    return buf_.data();
+    return buf_.data() + rd_;
 }
 
 std::size_t DataBuffer::size() const
