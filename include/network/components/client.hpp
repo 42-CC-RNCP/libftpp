@@ -38,9 +38,8 @@ public:
     {
         // encode the message and write to the write buffer
         connection_.queue(msg);
-
-        // notify the transport that there is data to write
-        connection_.onWritable();
+        // lazy write,
+        // actual send will be triggered in update() when transport is writable
     }
 
     // recv -> codec -> dispatcher
@@ -74,6 +73,12 @@ public:
                 // handle decoding error
                 throw std::runtime_error("Decoding error: " + r.error_msg);
             }
+        }
+
+        // for each update, check if there is data to write and notify
+        // the connection
+        if (connection_.wantsWrite()) {
+            connection_.onWritable();
         }
     }
 
