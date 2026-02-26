@@ -94,13 +94,12 @@ public:
 
     void disconnect(ClientId clientID) override { sessions_.erase(clientID); }
 
-    void update()
+    // timeout_ms: maximum time to wait for events, 0 means non-blocking, -1
+    // means block indefinitely
+    void update(int timeout_ms = 0)
     {
-        _acceptNewConnections();
-
-        for (auto& [id, session] : sessions_) {
-            _processSession(*session);
-        }
+        reactor_->poll(timeout_ms);
+        _processPendingClose();
     }
 
 private:
@@ -192,6 +191,7 @@ private:
                 _closeLater(s.id);
                 return;
             }
+            _updateSessionEvents(s);
         }
     }
 
