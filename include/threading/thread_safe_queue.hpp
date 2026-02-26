@@ -4,6 +4,7 @@
 #include <deque>
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 
 /*
 Exception-safe thread-safe queue implementation using std::deque.

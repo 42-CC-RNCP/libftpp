@@ -1,8 +1,6 @@
 // include/data_structures/tlv_adapters.hpp
 #pragma once
 #include "data_buffer.hpp"
-#include "design_patterns/memento/snapio.hpp"
-#include "network/byte_queue_adapter.hpp"
 #include "tlv.hpp"
 
 // ---------------------------
