@@ -1,8 +1,6 @@
-NAME      = libtpp
+NAME = libtpp
 BUILD_DIR = build
-
 MODULES = data_structures design_patterns tpp_iostream mathematics network threading
-
 TEST_TARGETS = \
     test_data_structures \
     test_memento \
@@ -12,9 +10,7 @@ TEST_TARGETS = \
     test_threading \
 	test_network
 
-.PHONY: all re clean fclean test cmake_configure help \
-        $(MODULES) $(TEST_TARGETS)
-
+.PHONY: all
 all: cmake_configure
 	@cmake --build $(BUILD_DIR) -- -q >/dev/null 2>&1; \
 	if [ $$? -eq 0 ]; then \
@@ -24,29 +20,42 @@ all: cmake_configure
 	fi
 	@ln -sf $(BUILD_DIR)/compile_commands.json compile_commands.json
 
+.PHONY: $(MODULES)
 $(MODULES): cmake_configure
 	@echo "[cmake] build module $@"
 	@cmake --build $(BUILD_DIR) --target $@ -- -s
 
+.PHONY: re
 re: fclean all
 
+.PHONY: clean
 clean:
 	@if [ -d "$(BUILD_DIR)" ]; then \
 		$(MAKE) -C $(BUILD_DIR) clean || true; \
 	fi
 
+.PHONY: fclean
 fclean:
 	@rm -f compile_commands.json
 	@cmake -E remove_directory $(BUILD_DIR) || true
 
+.PHONY: tests
+tests: $(TEST_TARGETS)
+	@for t in $(TEST_TARGETS); do \
+		echo "[ctest] run tests with prefix $$t"; \
+		ctest --test-dir $(BUILD_DIR) -R "^$$t"; \
+	done
+	
 
 # ---- test by module ----
+.PHONY: $(TEST_TARGETS)
 $(TEST_TARGETS): cmake_configure
 	@echo "[cmake] build test target $@"
 	@cmake --build $(BUILD_DIR) --target $@ -- -s
 	@echo "[ctest] run tests with prefix $@"
 	@cd $(BUILD_DIR) && ctest -R "^$@"
 
+.PHONY: help
 help:
 	@echo "Usage: make <target>"
 	@echo ""
@@ -68,6 +77,7 @@ help:
 	@echo "  make test_threading      # build and run threading-related tests"
 	@echo "  make test_data_structures"
 
+.PHONY: cmake_configure
 cmake_configure:
 	@if [ ! -f "$(BUILD_DIR)/CMakeCache.txt" ]; then \
 		echo "[cmake] configure..."; \
