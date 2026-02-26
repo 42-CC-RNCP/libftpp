@@ -31,6 +31,15 @@ public:
     {
     }
 
+    ~Connection()
+    {
+        // best effort to clean up, actual socket close will be handled by
+        // transport
+        if (wantsWrite()) {
+            onWritable();
+        }
+    }
+
     void connect(Endpoint& ep) { transport_.connect(ep); }
 
     void queue(const Message& msg) { codec_.encode(msg, tx_); }
@@ -96,8 +105,9 @@ public:
     bool wantsWrite() const { return tx_.remaining() > 0; }
     void close()
     {
+        // mark as closed to prevent further I/O operations, actual socket close
+        // will be handled by transport owner (e.g. Server session cleanup)
         if (!closed_) {
-            transport_.disconnect();
             closed_ = true;
         }
     }
