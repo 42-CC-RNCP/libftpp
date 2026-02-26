@@ -1,6 +1,7 @@
 // network/impl/tcp/tcp_acceptor.hpp
 #pragma once
 #include "network/contracts/acceptor.hpp"
+#include "socket_utils.hpp"
 #include "tcp_transport.hpp"
 #include <arpa/inet.h>
 #include <cstring>
@@ -8,19 +9,6 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
-
-static void set_nonblocking(int fd)
-{
-    int flags = ::fcntl(fd, F_GETFL, 0);
-    if (flags < 0) {
-        throw std::runtime_error(std::string("fcntl(F_GETFL) failed: ")
-                                 + std::strerror(errno));
-    }
-    if (::fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
-        throw std::runtime_error(std::string("fcntl(F_SETFL) failed: ")
-                                 + std::strerror(errno));
-    }
-}
 
 class TCPAcceptor : public IAcceptor
 {

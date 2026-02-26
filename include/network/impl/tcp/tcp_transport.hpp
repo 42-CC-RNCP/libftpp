@@ -1,6 +1,7 @@
 // network/impl/tcp/tcp_transport.hpp
 #pragma once
 #include "network/contracts/stream_transport.hpp"
+#include "socket_utils.hpp"
 #include <arpa/inet.h>
 #include <stdexcept>
 #include <sys/socket.h>
@@ -35,11 +36,12 @@ public:
             throw std::runtime_error("Failed to connect to server");
         }
         connected_ = true;
+        set_nonblocking(sockfd_);
     }
 
     void disconnect() override
     {
-        if (connected_) {
+        if (connected_ && sockfd_ >= 0) {
             ::close(sockfd_);
         }
         sockfd_ = -1;
