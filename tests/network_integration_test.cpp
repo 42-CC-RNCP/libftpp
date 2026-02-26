@@ -1,10 +1,12 @@
 // tests/network_integration_test.cpp
-#include "network/client.hpp"
-#include "network/length_prefixed_codec.hpp"
-#include "network/network_port.hpp"
-#include "network/server.hpp"
-#include "network/tcp_acceptor.hpp"
-#include "network/tcp_transport.hpp"
+#include "network/components/client.hpp"
+#include "network/components/server.hpp"
+#include "network/components/message_builder.hpp"
+#include "network/contracts/network_port.hpp"
+#include "network/impl/codec/length_prefixed_codec.hpp"
+#include "network/impl/reactor/epoll_reactor.hpp"
+#include "network/impl/tcp/tcp_acceptor.hpp"
+#include "network/impl/tcp/tcp_transport.hpp"
 #include <atomic>
 #include <chrono>
 #include <gtest/gtest.h>
@@ -23,11 +25,12 @@ protected:
 TEST_F(NetworkIntegrationTest, ServerAcceptsClientConnection)
 {
     auto acceptor = std::make_unique<TCPAcceptor>();
+    auto reactor = std::make_unique<EpollReactor>();
     auto codecFactory = []() {
         return std::make_unique<LengthPrefixedCodec>();
     };
 
-    Server server(std::move(acceptor), codecFactory);
+    Server server(std::move(acceptor), std::move(reactor), codecFactory);
     server.start(TEST_PORT);
 
     // Run server in separate thread
@@ -61,11 +64,12 @@ TEST_F(NetworkIntegrationTest, ClientSendsMessageToServer)
     std::atomic<Message::Type> receivedType{0};
 
     auto acceptor = std::make_unique<TCPAcceptor>();
+    auto reactor = std::make_unique<EpollReactor>();
     auto codecFactory = []() {
         return std::make_unique<LengthPrefixedCodec>();
     };
 
-    Server server(std::move(acceptor), codecFactory);
+    Server server(std::move(acceptor), std::move(reactor), codecFactory);
     server.start(TEST_PORT);
 
     // Define server handler
@@ -93,10 +97,12 @@ TEST_F(NetworkIntegrationTest, ClientSendsMessageToServer)
     client.connect(TEST_HOST, TEST_PORT);
 
     // Send message
-    Message msg(expectedType);
+    MessageWriter writer(expectedType);
     int payload = 42;
-    msg << payload;
+    writer << payload; // example payload
+    Message msg = writer.build();
     client.send(msg);
+    client.update();
 
     // Flush send buffer
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -122,11 +128,12 @@ TEST_F(NetworkIntegrationTest, ServerSendsMessageToClient)
     std::atomic<INetworkPort::ClientId> connectedClientId{0};
 
     auto acceptor = std::make_unique<TCPAcceptor>();
+    auto reactor = std::make_unique<EpollReactor>();
     auto codecFactory = []() {
         return std::make_unique<LengthPrefixedCodec>();
     };
 
-    Server server(std::move(acceptor), codecFactory);
+    Server server(std::move(acceptor), std::move(reactor), codecFactory);
     server.start(TEST_PORT);
 
     // Define handler to track connected client
@@ -195,11 +202,12 @@ TEST_F(NetworkIntegrationTest, ServerBroadcastsToMultipleClients)
     std::atomic<int> messagesReceived{0};
 
     auto acceptor = std::make_unique<TCPAcceptor>();
+    auto reactor = std::make_unique<EpollReactor>();
     auto codecFactory = []() {
         return std::make_unique<LengthPrefixedCodec>();
     };
 
-    Server server(std::move(acceptor), codecFactory);
+    Server server(std::move(acceptor), std::move(reactor), codecFactory);
     server.start(TEST_PORT);
 
     std::atomic<bool> serverRunning{true};
@@ -277,19 +285,20 @@ TEST_F(NetworkIntegrationTest, RoundTripMessageWithComplexPayload)
     double receivedDouble = 0.0;
 
     auto acceptor = std::make_unique<TCPAcceptor>();
+    auto reactor = std::make_unique<EpollReactor>();
     auto codecFactory = []() {
         return std::make_unique<LengthPrefixedCodec>();
     };
 
-    Server server(std::move(acceptor), codecFactory);
+    Server server(std::move(acceptor), std::move(reactor), codecFactory);
     server.start(TEST_PORT);
 
     Message::Type msgType = 400;
     server.defineAction(
         msgType,
         [&]([[maybe_unused]] PeerHandle& peer, const Message& msg_const) {
-            Message& msg = const_cast<Message&>(msg_const);
-            msg >> receivedInt >> receivedString >> receivedDouble;
+            MessageReader reader(msg_const);
+            reader >> receivedInt >> receivedString >> receivedDouble;
             messageReceived = true;
         });
 
@@ -309,12 +318,14 @@ TEST_F(NetworkIntegrationTest, RoundTripMessageWithComplexPayload)
     client.connect(TEST_HOST, TEST_PORT);
 
     // Send complex message
-    Message msg(msgType);
+    MessageWriter writer(msgType);
     int intVal = 12345;
     std::string strVal = "hello world";
     double doubleVal = 3.14159;
-    msg << intVal << strVal << doubleVal;
+    writer << intVal << strVal << doubleVal;
+    Message msg = writer.build();
     client.send(msg);
+    client.update();
 
     // Wait for server to receive
     int attempts = 0;
@@ -337,11 +348,12 @@ TEST_F(NetworkIntegrationTest, ClientDisconnectIsDetected)
     std::atomic<int> activeClients{0};
 
     auto acceptor = std::make_unique<TCPAcceptor>();
+    auto reactor = std::make_unique<EpollReactor>();
     auto codecFactory = []() {
         return std::make_unique<LengthPrefixedCodec>();
     };
 
-    Server server(std::move(acceptor), codecFactory);
+    Server server(std::move(acceptor), std::move(reactor), codecFactory);
     server.start(TEST_PORT);
 
     std::atomic<bool> serverRunning{true};
