@@ -1,5 +1,5 @@
 // tests/byte_queue_test.cpp
-#include "network/byte_queue_adapter.hpp"
+#include "network/impl/buffer/byte_queue_adapter.hpp"
 #include <gtest/gtest.h>
 #include <vector>
 

@@ -1,6 +1,6 @@
 // tests/tcp_transport_test.cpp
-#include "network/endpoint.hpp"
-#include "network/tcp_transport.hpp"
+#include "network/core/endpoint.hpp"
+#include "network/impl/tcp/tcp_transport.hpp"
 #include <gtest/gtest.h>
 
 class TCPTransportTest : public ::testing::Test

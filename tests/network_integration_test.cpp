@@ -1,12 +1,5 @@
 // tests/network_integration_test.cpp
-#include "network/components/client.hpp"
-#include "network/components/server.hpp"
-#include "network/components/message_builder.hpp"
-#include "network/contracts/network_port.hpp"
-#include "network/impl/codec/length_prefixed_codec.hpp"
-#include "network/impl/reactor/epoll_reactor.hpp"
-#include "network/impl/tcp/tcp_acceptor.hpp"
-#include "network/impl/tcp/tcp_transport.hpp"
+#include "network/network.hpp"
 #include <atomic>
 #include <chrono>
 #include <gtest/gtest.h>

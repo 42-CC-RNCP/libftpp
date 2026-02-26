@@ -1,7 +1,7 @@
 // tests/length_prefixed_codec_test.cpp
-#include "network/byte_queue_adapter.hpp"
-#include "network/length_prefixed_codec.hpp"
-#include "network/message.hpp"
+#include "network/core/message.hpp"
+#include "network/impl/buffer/byte_queue_adapter.hpp"
+#include "network/impl/codec/length_prefixed_codec.hpp"
 #include <gtest/gtest.h>
 #include <vector>
 

@@ -1,5 +1,5 @@
 // tests/message_test.cpp
-#include "network/message.hpp"
+#include "network/core/message.hpp"
 #include <gtest/gtest.h>
 #include <string>
 #include <type_traits>

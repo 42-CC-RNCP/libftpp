@@ -1,7 +1,7 @@
 // tests/thread_safe_iostream_test.cpp
+#include "iostream/thread_safe_iostream.hpp"
 #include <atomic>
 #include <gtest/gtest.h>
-#include <iostream/thread_safe_iostream.hpp>
 #include <iostream>
 #include <istream>
 #include <sstream>
@@ -201,4 +201,3 @@ TEST(ThreadSafeIOStream, ThreadLocalInstanceExistsPerThread)
 
     EXPECT_NE(addr_main, addr_t);
 }
-

@@ -1,15 +1,13 @@
 // thread_test.cpp
+#include "threading/thread.hpp"
 #include <atomic>
 #include <chrono>
 #include <gtest/gtest.h>
 #include <thread>
-#include <threading/thread.hpp>
-
 
 TEST(ThreadTest, DoesNotRunFunctionBeforeStart)
 {
     std::atomic<int> counter{0};
-
 
     Thread t("worker", [&]() {
         ++counter;

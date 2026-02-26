@@ -1,6 +1,6 @@
 // singleton_test.cpp
+#include "design_patterns/singleton.hpp"
 #include <atomic>
-#include <design_patterns/singleton.hpp>
 #include <gtest/gtest.h>
 #include <string>
 #include <thread>

@@ -1,5 +1,5 @@
 // tests/observer_test.cpp
-#include <design_patterns/observer.hpp>
+#include "design_patterns/observer.hpp"
 #include <gtest/gtest.h>
 #include <iostream>
 

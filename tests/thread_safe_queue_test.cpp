@@ -1,9 +1,9 @@
 // thread_safe_queue_test.cpp
+#include "threading/thread_safe_queue.hpp"
 #include <algorithm>
 #include <atomic>
 #include <gtest/gtest.h>
 #include <thread>
-#include <threading/thread_safe_queue.hpp>
 #include <vector>
 
 // Basic single-threaded functionality tests
@@ -213,7 +213,8 @@ TEST(ThreadSafeQueueTest, PushBackExceptionDoesNotBreakFutureOperations)
     ThrowOnCopy::throw_on_copy = true;
     EXPECT_THROW(q.push_back(v), std::runtime_error);
 
-    // turn off exception throwing, then do normal push/pop to verify queue is still usable
+    // turn off exception throwing, then do normal push/pop to verify queue is
+    // still usable
     ThrowOnCopy::throw_on_copy = false;
     q.push_back(ThrowOnCopy(1));
     q.push_back(ThrowOnCopy(2));

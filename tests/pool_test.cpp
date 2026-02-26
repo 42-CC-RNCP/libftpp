@@ -1,7 +1,8 @@
+#include "data_structures/pool.hpp"
 #include <gtest/gtest.h>
-#include <data_structures/pool.hpp>
 
-struct Dummy {
+struct Dummy
+{
     static inline size_t ctor = 0;
     static inline size_t dtor = 0;
     static inline size_t moveCtor = 0;
@@ -13,13 +14,22 @@ struct Dummy {
     Dummy() { ++ctor; }
     Dummy(int aa, std::string ss) : a(aa), s(std::move(ss)) { ++ctor; }
 
-    Dummy(const Dummy& o) : a(o.a), s(o.s) { ++ctor; ++copyCtor; }
-    Dummy(Dummy&& o) noexcept : a(o.a), s(std::move(o.s)) { ++ctor; ++moveCtor; }
+    Dummy(const Dummy& o) : a(o.a), s(o.s)
+    {
+        ++ctor;
+        ++copyCtor;
+    }
+    Dummy(Dummy&& o) noexcept : a(o.a), s(std::move(o.s))
+    {
+        ++ctor;
+        ++moveCtor;
+    }
 
     ~Dummy() { ++dtor; }
 };
 
-TEST(PoolTest, CtorDtor_Exact_WithEmplace) {
+TEST(PoolTest, CtorDtor_Exact_WithEmplace)
+{
     Dummy::ctor = Dummy::dtor = Dummy::moveCtor = Dummy::copyCtor = 0;
 
     {
@@ -34,7 +44,8 @@ TEST(PoolTest, CtorDtor_Exact_WithEmplace) {
     EXPECT_EQ(Dummy::dtor, 3);
 }
 
-TEST(PoolTest, ReuseSameAddress) {
+TEST(PoolTest, ReuseSameAddress)
+{
     Dummy::ctor = Dummy::dtor = 0;
     Pool<Dummy> pool(1);
     Dummy* p = nullptr;
@@ -49,7 +60,8 @@ TEST(PoolTest, ReuseSameAddress) {
     EXPECT_EQ(&*h2, p);
 }
 
-TEST(PoolTest, AcquireAndDereference) {
+TEST(PoolTest, AcquireAndDereference)
+{
     Pool<Dummy> pool(3);
     {
         auto obj = pool.acquire(42, "hello");
@@ -57,16 +69,18 @@ TEST(PoolTest, AcquireAndDereference) {
         EXPECT_EQ(obj->s, "hello");
         EXPECT_EQ((*obj).a, 42);
         EXPECT_EQ((*obj).s, "hello");
-    }  // test automatic release via destructor
+    } // test automatic release via destructor
 }
 
-TEST(PoolTest, AcquireAllAndThrow) {
+TEST(PoolTest, AcquireAllAndThrow)
+{
     Pool<Dummy> pool(1);
     auto obj = pool.acquire(1, "test");
     EXPECT_THROW(pool.acquire(2, "fail"), std::runtime_error);
 }
 
-TEST(PoolTest, ResizeCreatesObjects) {
+TEST(PoolTest, ResizeCreatesObjects)
+{
     Pool<Dummy> pool(0);
     pool.resize(5);
     for (int i = 0; i < 5; ++i) {
@@ -76,7 +90,8 @@ TEST(PoolTest, ResizeCreatesObjects) {
     }
 }
 
-TEST(PoolTest, MoveConstructorTransfersOwnership) {
+TEST(PoolTest, MoveConstructorTransfersOwnership)
+{
     Pool<Dummy> pool(1);
     auto obj1 = pool.acquire(1, "x");
     Dummy* rawPtr = obj1.operator->();
@@ -86,7 +101,8 @@ TEST(PoolTest, MoveConstructorTransfersOwnership) {
     EXPECT_EQ(obj2.operator->(), rawPtr);
 }
 
-TEST(PoolTest, MoveAssignmentTransfersOwnership) {
+TEST(PoolTest, MoveAssignmentTransfersOwnership)
+{
     Pool<Dummy> pool(2);
     auto obj1 = pool.acquire(5, "A");
     auto obj2 = pool.acquire(6, "B");
@@ -97,7 +113,8 @@ TEST(PoolTest, MoveAssignmentTransfersOwnership) {
     EXPECT_EQ(obj2.operator->(), raw1);
 }
 
-TEST(PoolTest, ReleaseAndReuse) {
+TEST(PoolTest, ReleaseAndReuse)
+{
     Pool<Dummy> pool(1);
     Dummy* original = nullptr;
     {

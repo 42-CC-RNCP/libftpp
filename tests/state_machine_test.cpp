@@ -1,5 +1,5 @@
 // state_machine_test.cpp
-#include <design_patterns/state_machine.hpp>
+#include "design_patterns/state_machine.hpp"
 #include <functional>
 #include <gtest/gtest.h>
 #include <stdexcept>

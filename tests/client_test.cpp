@@ -1,9 +1,9 @@
 // tests/client_test.cpp
-#include "network/client.hpp"
-#include "network/message_codec.hpp"
-#include "network/stream_transport.hpp"
+#include "network/components/client.hpp"
+#include "network/contracts/stream_transport.hpp"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
 
 using ::testing::_;
 using ::testing::DoAll;

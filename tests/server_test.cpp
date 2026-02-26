@@ -1,11 +1,11 @@
-// tests/server_test.cpp (FIXED VERSION)
-#include "network/acceptor.hpp"
-#include "network/message_codec.hpp"
-#include "network/server.hpp"
-#include "network/stream_transport.hpp"
+// tests/server_test.cpp
+#include "network/components/server.hpp"
+#include "network/contracts/message_codec.hpp"
+#include "network/contracts/stream_transport.hpp"
 #include <cerrno>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
 
 using ::testing::_;
 using ::testing::DoAll;

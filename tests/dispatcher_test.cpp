@@ -1,6 +1,7 @@
 // tests/dispatcher_test.cpp
-#include "network/dispatcher.hpp"
-#include "network/message.hpp"
+#include "network/components/dispatcher.hpp"
+#include "network/components/message_builder.hpp"
+#include "network/core/message.hpp"
 #include <gtest/gtest.h>
 #include <string>
 
@@ -67,18 +68,18 @@ TEST_F(DispatcherTest, DispatchPassesMessagePayload)
 {
     Message::Type msgType = 200;
 
-    dispatcher_.defineRawAction(
-        msgType, [](TestContext& ctx, const Message& msg_const) {
-            // Need to work around const
-            Message& msg = const_cast<Message&>(msg_const);
-            int value = 0;
-            msg >> value;
-            ctx.counter = value;
-        });
-
-    Message msg(msgType);
+    dispatcher_.defineRawAction(msgType,
+                                [](TestContext& ctx, const Message& msg_const) {
+                                    // Need to work around const
+                                    MessageReader reader(msg_const);
+                                    int value = 0;
+                                    reader >> value;
+                                    ctx.counter = value;
+                                });
+    MessageWriter writer(msgType);
     int payload = 777;
-    msg << payload;
+    writer << payload;
+    Message msg = writer.build();
 
     dispatcher_.dispatch(context_, msg);
 
@@ -159,19 +160,18 @@ TEST_F(DispatcherTest, HandlerCanModifyContext)
 {
     Message::Type msgType = 300;
 
-    dispatcher_.defineRawAction(
-        msgType, [](TestContext& ctx, const Message& msg_const) {
-            Message& msg = const_cast<Message&>(msg_const);
-            std::string str;
-            msg >> str;
-            ctx.lastMessage = str;
-            ctx.counter = 42;
-        });
+    dispatcher_.defineRawAction(msgType,
+                                [](TestContext& ctx, const Message& msg_const) {
+                                    MessageReader reader(msg_const);
+                                    reader >> ctx.lastType;
+                                    ctx.counter = 42;
+                                });
 
-    Message msg(msgType);
+    MessageWriter writer(msgType);
     std::string payload = "hello";
-    msg << payload;
+    writer << payload;
 
+    Message msg = writer.build();
     dispatcher_.dispatch(context_, msg);
 
     EXPECT_EQ(context_.lastMessage, "hello");
@@ -200,19 +200,20 @@ TEST_F(DispatcherTest, HandlerCanReadMultipleFieldsFromMessage)
 {
     Message::Type msgType = 500;
 
-    dispatcher_.defineRawAction(
-        msgType, [](TestContext& ctx, const Message& msg_const) {
-            Message& msg = const_cast<Message&>(msg_const);
-            int i = 0;
-            std::string s;
-            double d = 0.0;
-            msg >> i >> s >> d;
-            ctx.counter = i;
-            ctx.lastMessage = s;
-        });
+    dispatcher_.defineRawAction(msgType,
+                                [](TestContext& ctx, const Message& msg_const) {
+                                    MessageReader reader(msg_const);
+                                    int i = 0;
+                                    std::string s;
+                                    double d = 0.0;
+                                    reader >> i >> s >> d;
+                                    ctx.counter = i;
+                                    ctx.lastMessage = s;
+                                });
 
-    Message msg(msgType);
-    msg << 123 << std::string("test") << 3.14;
+    MessageWriter writer(msgType);
+    writer << 123 << std::string("test") << 3.14;
+    Message msg = writer.build();
 
     dispatcher_.dispatch(context_, msg);
 

@@ -1,9 +1,10 @@
 // tests/connection_test.cpp
-#include "network/connection.hpp"
-#include "network/length_prefixed_codec.hpp"
-#include "network/stream_transport.hpp"
+#include "network/components/connection.hpp"
+#include "network/contracts/stream_transport.hpp"
+#include "network/impl/codec/length_prefixed_codec.hpp"
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <memory>
 
 using ::testing::_;
 using ::testing::DoAll;
