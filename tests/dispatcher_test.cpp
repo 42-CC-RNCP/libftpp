@@ -163,13 +163,13 @@ TEST_F(DispatcherTest, HandlerCanModifyContext)
     dispatcher_.defineRawAction(msgType,
                                 [](TestContext& ctx, const Message& msg_const) {
                                     MessageReader reader(msg_const);
-                                    reader >> ctx.lastType;
-                                    ctx.counter = 42;
+                                    reader >> ctx.lastMessage >> ctx.counter;
                                 });
 
     MessageWriter writer(msgType);
     std::string payload = "hello";
     writer << payload;
+    writer << 42;
 
     Message msg = writer.build();
     dispatcher_.dispatch(context_, msg);

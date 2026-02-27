@@ -1,4 +1,5 @@
 // tests/length_prefixed_codec_test.cpp
+#include "network/components/message_builder.hpp"
 #include "network/core/message.hpp"
 #include "network/impl/buffer/byte_queue_adapter.hpp"
 #include "network/impl/codec/length_prefixed_codec.hpp"
@@ -21,10 +22,11 @@ TEST(LengthPrefixedCodecTest, EncodeMessageWithPayload)
 {
     LengthPrefixedCodec codec;
     DataBufferByteQueue queue;
-    Message msg(200);
-
+    MessageWriter writer(200);
     int payload = 12345;
-    msg << payload;
+
+    writer << payload;
+    Message msg = writer.build();
 
     codec.encode(msg, queue);
 
@@ -36,10 +38,11 @@ TEST(LengthPrefixedCodecTest, EncodeMessageWithStringPayload)
 {
     LengthPrefixedCodec codec;
     DataBufferByteQueue queue;
-    Message msg(300);
-
+    MessageWriter writer(300);
     std::string str = "hello";
-    msg << str;
+
+    writer << str;
+    Message msg = writer.build();
 
     codec.encode(msg, queue);
 
@@ -134,10 +137,11 @@ TEST(LengthPrefixedCodecTest, EncodeDecodeRoundTripWithIntPayload)
 {
     LengthPrefixedCodec codec;
     DataBufferByteQueue queue;
+    MessageWriter writer(100);
 
-    Message original(100);
     int value = 987654321;
-    original << value;
+    writer << value;
+    Message original = writer.build();
 
     codec.encode(original, queue);
 
@@ -148,7 +152,8 @@ TEST(LengthPrefixedCodecTest, EncodeDecodeRoundTripWithIntPayload)
     EXPECT_EQ(decoded.type(), 100u);
 
     int decodedValue = 0;
-    decoded >> decodedValue;
+    MessageReader reader(decoded);
+    reader >> decodedValue;
     EXPECT_EQ(decodedValue, value);
 }
 
@@ -157,9 +162,10 @@ TEST(LengthPrefixedCodecTest, EncodeDecodeRoundTripWithStringPayload)
     LengthPrefixedCodec codec;
     DataBufferByteQueue queue;
 
-    Message original(200);
+    MessageWriter writer(200);
     std::string value = "hello, world";
-    original << value;
+    writer << value;
+    Message original = writer.build();
 
     codec.encode(original, queue);
 
@@ -170,7 +176,8 @@ TEST(LengthPrefixedCodecTest, EncodeDecodeRoundTripWithStringPayload)
     EXPECT_EQ(decoded.type(), 200u);
 
     std::string decodedValue;
-    decoded >> decodedValue;
+    MessageReader reader(decoded);
+    reader >> decodedValue;
     EXPECT_EQ(decodedValue, value);
 }
 
@@ -179,11 +186,12 @@ TEST(LengthPrefixedCodecTest, EncodeDecodeMultipleFields)
     LengthPrefixedCodec codec;
     DataBufferByteQueue queue;
 
-    Message original(300);
+    MessageWriter writer(300);
     int i = 42;
     std::string s = "test";
     double d = 3.14;
-    original << i << s << d;
+    writer << i << s << d;
+    Message original = writer.build();
 
     codec.encode(original, queue);
 
@@ -195,7 +203,8 @@ TEST(LengthPrefixedCodecTest, EncodeDecodeMultipleFields)
     int i_out = 0;
     std::string s_out;
     double d_out = 0.0;
-    decoded >> i_out >> s_out >> d_out;
+    MessageReader reader(decoded);
+    reader >> i_out >> s_out >> d_out;
 
     EXPECT_EQ(i_out, i);
     EXPECT_EQ(s_out, s);
@@ -208,14 +217,16 @@ TEST(LengthPrefixedCodecTest, DecodeMultipleMessagesInSequence)
     DataBufferByteQueue queue;
 
     // Encode two messages
-    Message msg1(1);
+    MessageWriter writer1(1);
     int val1 = 111;
-    msg1 << val1;
+    writer1 << val1;
+    Message msg1 = writer1.build();
     codec.encode(msg1, queue);
 
-    Message msg2(2);
+    MessageWriter writer2(2);
     int val2 = 222;
-    msg2 << val2;
+    writer2 << val2;
+    Message msg2 = writer2.build();
     codec.encode(msg2, queue);
 
     // Decode first message
@@ -225,7 +236,8 @@ TEST(LengthPrefixedCodecTest, DecodeMultipleMessagesInSequence)
     EXPECT_EQ(decoded1.type(), 1u);
 
     int out1 = 0;
-    decoded1 >> out1;
+    MessageReader reader1(decoded1);
+    reader1 >> out1;
     EXPECT_EQ(out1, val1);
 
     // Decode second message
@@ -235,7 +247,8 @@ TEST(LengthPrefixedCodecTest, DecodeMultipleMessagesInSequence)
     EXPECT_EQ(decoded2.type(), 2u);
 
     int out2 = 0;
-    decoded2 >> out2;
+    MessageReader reader2(decoded2);
+    reader2 >> out2;
     EXPECT_EQ(out2, val2);
 
     // Queue should be empty
@@ -248,8 +261,9 @@ TEST(LengthPrefixedCodecTest, DecodeWithExtraDataInQueue)
     DataBufferByteQueue queue;
 
     // Encode one complete message
-    Message msg1(10);
-    msg1 << 100;
+    MessageWriter writer1(10);
+    writer1 << 100;
+    Message msg1 = writer1.build();
     codec.encode(msg1, queue);
 
     // Add partial second message
@@ -273,9 +287,10 @@ TEST(LengthPrefixedCodecTest, LargePayloadEncodeDecode)
     LengthPrefixedCodec codec;
     DataBufferByteQueue queue;
 
-    Message original(999);
+    MessageWriter writer(999);
     std::string largeStr(5000, 'X');
-    original << largeStr;
+    writer << largeStr;
+    Message original = writer.build();
 
     codec.encode(original, queue);
 
@@ -286,7 +301,8 @@ TEST(LengthPrefixedCodecTest, LargePayloadEncodeDecode)
     EXPECT_EQ(decoded.type(), 999u);
 
     std::string decodedStr;
-    decoded >> decodedStr;
+    MessageReader reader(decoded);
+    reader >> decodedStr;
     EXPECT_EQ(decodedStr.size(), 5000u);
     EXPECT_EQ(decodedStr, largeStr);
 }
