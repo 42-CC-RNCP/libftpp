@@ -8,3 +8,8 @@ target_include_directories(network
     PUBLIC
         ${PROJECT_SOURCE_DIR}/include
 )
+
+target_link_libraries(network
+    PUBLIC
+        data_structures
+)

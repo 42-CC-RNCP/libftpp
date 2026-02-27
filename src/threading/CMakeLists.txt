@@ -11,6 +11,6 @@ target_include_directories(threading
 )
 
 target_link_libraries(threading
-    INTERFACE
+    PUBLIC
         tpp_iostream
 )
