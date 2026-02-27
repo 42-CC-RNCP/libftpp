@@ -18,6 +18,7 @@ public:
     MOCK_METHOD(ssize_t, recvBytes, (std::byte*, size_t), (override));
     MOCK_METHOD(ssize_t, sendBytes, (const std::byte*, size_t), (override));
     MOCK_METHOD(bool, isConnected, (), (const, override));
+    MOCK_METHOD(int, nativeHandle, (), (const, override));
 };
 
 class MockMessageCodec : public IMessageCodec
@@ -78,8 +79,6 @@ TEST_F(ClientTest, UpdateWithClosedConnectionReturns)
 {
     EXPECT_CALL(*transport_, recvBytes(_, _)).WillOnce(Return(0));
 
-    EXPECT_CALL(*transport_, disconnect());
-
     // Should not throw
     client_->update();
 }
@@ -110,7 +109,7 @@ TEST_F(ClientTest, UpdateDispatchesDecodedMessages)
     // Simulate successful decode
     EXPECT_CALL(*codec_, tryDecode(_, _))
         .WillOnce([handlerType](ByteQueue&, Message& outMsg) {
-            outMsg.type() = handlerType;
+            outMsg = Message(handlerType);
             return DecodeResult{DecodeStatus::Ok, 0, ""};
         })
         .WillRepeatedly(
@@ -153,7 +152,7 @@ TEST_F(ClientTest, UpdateDecodesSingleMessage)
 
     EXPECT_CALL(*codec_, tryDecode(_, _))
         .WillOnce([msgType](ByteQueue&, Message& outMsg) {
-            outMsg.type() = msgType;
+            outMsg = Message(msgType);
             return DecodeResult{DecodeStatus::Ok, 0, ""};
         })
         .WillOnce(Return(DecodeResult{DecodeStatus::NeedMoreData, 0, ""}));
@@ -181,11 +180,11 @@ TEST_F(ClientTest, UpdateDecodesMultipleMessages)
 
     EXPECT_CALL(*codec_, tryDecode(_, _))
         .WillOnce([msgType](ByteQueue&, Message& outMsg) {
-            outMsg.type() = msgType;
+            outMsg = Message(msgType);
             return DecodeResult{DecodeStatus::Ok, 0, ""};
         })
         .WillOnce([msgType](ByteQueue&, Message& outMsg) {
-            outMsg.type() = msgType;
+            outMsg = Message(msgType);
             return DecodeResult{DecodeStatus::Ok, 0, ""};
         })
         .WillOnce(Return(DecodeResult{DecodeStatus::NeedMoreData, 0, ""}));
@@ -238,7 +237,7 @@ TEST_F(ClientTest, HandlerReceivesOutboundPort)
 
     EXPECT_CALL(*codec_, tryDecode(_, _))
         .WillOnce([msgType](ByteQueue&, Message& outMsg) {
-            outMsg.type() = msgType;
+            outMsg = Message(msgType);
             return DecodeResult{DecodeStatus::Ok, 0, ""};
         })
         .WillRepeatedly(

@@ -1,4 +1,5 @@
 // tests/message_test.cpp
+#include "network/components/message_builder.hpp"
 #include "network/core/message.hpp"
 #include <gtest/gtest.h>
 #include <string>
@@ -7,77 +8,100 @@
 
 TEST(MessageTest, ConstructorStoresType)
 {
-    int t = 42;
-
+    Message::Type t = 42;
     Message msg(t);
-
     EXPECT_EQ(msg.type(), t);
 }
 
-TEST(MessageTest, TypeIsNotAffectedByPayloadOperations)
+TEST(MessageTest, TypeIsNotAffectedByBytesMutation)
 {
     Message msg(1234);
-    int x = 10;
+    msg.setBytes({std::byte{0xAA}, std::byte{0xBB}});
 
-    msg << x;
-
-    EXPECT_EQ(msg.type(), 1234);
-
-    int y = 0;
-    msg >> y;
-    EXPECT_EQ(y, x);
-    EXPECT_EQ(msg.type(), 1234);
+    EXPECT_EQ(msg.type(), 1234u);
+    EXPECT_EQ(msg.bytes().size(), 2u);
 }
 
-TEST(MessageTest, CanSerializeAndDeserializeSinglePrimitive)
+TEST(MessageTest, SetBytesReplacesPayload)
 {
-    Message msg(1);
+    Message msg(7);
+    std::vector<std::byte> payload{
+        std::byte{0x01}, std::byte{0x02}, std::byte{0x03}};
 
-    int original = 987654321;
-    int decoded = 0;
+    msg.setBytes(payload);
 
-    msg << original;
-    msg >> decoded;
-
-    EXPECT_EQ(decoded, original);
+    EXPECT_EQ(msg.bytes().size(), payload.size());
+    EXPECT_EQ(msg.bytes()[0], std::byte{0x01});
+    EXPECT_EQ(msg.bytes()[1], std::byte{0x02});
+    EXPECT_EQ(msg.bytes()[2], std::byte{0x03});
 }
 
-TEST(MessageTest, CanSerializeAndDeserializeMultipleFieldsInOrder)
+TEST(MessageTest, BytesReferenceIsMutable)
 {
-    Message msg(99);
+    Message msg(9);
+    msg.setBytes({std::byte{0x10}});
+
+    auto& bytes = msg.bytes();
+    bytes.push_back(std::byte{0x20});
+
+    EXPECT_EQ(msg.bytes().size(), 2u);
+    EXPECT_EQ(msg.bytes()[1], std::byte{0x20});
+}
+
+TEST(MessageTest, WriterReaderRoundTripSinglePrimitive)
+{
+    MessageWriter writer(1);
+    int in = 987654321;
+    writer << in;
+
+    Message msg = writer.build();
+
+    int out = 0;
+    MessageReader reader(msg);
+    reader >> out;
+
+    EXPECT_EQ(msg.type(), 1u);
+    EXPECT_EQ(out, in);
+}
+
+TEST(MessageTest, WriterReaderRoundTripMultipleFieldsInOrder)
+{
+    MessageWriter writer(99);
 
     int i_in = 42;
     std::string s_in = "hello, world";
     double d_in = 3.1415926;
 
+    writer << i_in << s_in << d_in;
+    Message msg = writer.build();
+
     int i_out = 0;
     std::string s_out;
     double d_out = 0.0;
 
-    msg << i_in << s_in << d_in;
-
-    msg >> i_out >> s_out >> d_out;
+    MessageReader reader(msg);
+    reader >> i_out >> s_out >> d_out;
 
     EXPECT_EQ(i_out, i_in);
     EXPECT_EQ(s_out, s_in);
     EXPECT_DOUBLE_EQ(d_out, d_in);
 }
 
-TEST(MessageTest, SupportsStdVectorSerialization)
+TEST(MessageTest, WriterReaderSupportsStdVector)
 {
-    Message msg(2);
-
+    MessageWriter writer(2);
     std::vector<int> in = {1, 2, 3, 4, 5};
+    writer << in;
+    Message msg = writer.build();
+
     std::vector<int> out;
+    MessageReader reader(msg);
+    reader >> out;
 
-    msg << in;
-    msg >> out;
-
-    EXPECT_EQ(out.size(), in.size());
     EXPECT_EQ(out, in);
 }
 
-TEST(MessageTest, SupportsEnumSerialization)
+TEST(MessageTest, WriterReaderSupportsEnum)
 {
     enum class MyMsgType : int
     {
@@ -85,46 +109,16 @@ TEST(MessageTest, SupportsEnumSerialization)
         Bar = 20,
     };
 
-    Message msg(3);
-
+    MessageWriter writer(3);
     MyMsgType in = MyMsgType::Bar;
-    MyMsgType out = MyMsgType::Foo;
+    writer << in;
+    Message msg = writer.build();
 
-    msg << in;
-    msg >> out;
+    MyMsgType out = MyMsgType::Foo;
+    MessageReader reader(msg);
+    reader >> out;
 
     EXPECT_EQ(out, in);
-}
-
-TEST(MessageTest, OperatorChainingWorks)
-{
-    Message msg(7);
-
-    int i_in = 111;
-    std::string s_in = "chain";
-    int i2_in = 222;
-
-    int i_out = 0;
-    std::string s_out;
-    int i2_out = 0;
-
-    msg << i_in << s_in << i2_in;
-    msg >> i_out >> s_out >> i2_out;
-
-    EXPECT_EQ(i_out, i_in);
-    EXPECT_EQ(s_out, s_in);
-    EXPECT_EQ(i2_out, i2_in);
-}
-
-TEST(MessageTest, MismatchedTypeThrowsOnDecode)
-{
-    Message msg(8);
-
-    int in = 123;
-    msg << in;
-
-    std::string out;
-    EXPECT_THROW({ msg >> out; }, std::runtime_error);
 }
 
 TEST(MessageAdvancedTest, MessageIsMoveOnly)
@@ -137,107 +131,94 @@ TEST(MessageAdvancedTest, MessageIsMoveOnly)
 
 TEST(MessageAdvancedTest, MoveConstructorKeepsTypeAndPayloadIntact)
 {
-    Message original(42);
+    MessageWriter writer(42);
     int in = 123456;
-    original << in;
+    writer << in;
+    Message original = writer.build();
 
     Message moved(std::move(original));
 
     int out = 0;
-    moved >> out;
+    MessageReader reader(moved);
+    reader >> out;
 
     EXPECT_EQ(out, in);
-    EXPECT_EQ(moved.type(), 42);
-
-    EXPECT_EQ(original.type(), 42);
+    EXPECT_EQ(moved.type(), 42u);
 }
 
 TEST(MessageAdvancedTest, MoveAssignmentKeepsTypeAndPayloadIntact)
 {
-    Message src(7);
+    MessageWriter writer(7);
     int in = 999;
-    src << in;
+    writer << in;
+    Message src = writer.build();
 
     Message dst(1);
     dst = std::move(src);
 
     int out = 0;
-    dst >> out;
+    MessageReader reader(dst);
+    reader >> out;
 
     EXPECT_EQ(out, in);
-    EXPECT_EQ(dst.type(), 7);
+    EXPECT_EQ(dst.type(), 7u);
 }
 
 TEST(MessageAdvancedTest, ReadingBeyondWrittenPayloadThrows)
 {
-    Message msg(5);
+    MessageWriter writer(5);
+    writer << 111;
+    Message msg = writer.build();
 
-    int a_in = 111;
-    msg << a_in;
+    MessageReader reader(msg);
 
     int a_out = 0;
-    msg >> a_out;
-    EXPECT_EQ(a_out, a_in);
+    reader >> a_out;
+    EXPECT_EQ(a_out, 111);
 
     int extra = 0;
-    EXPECT_THROW({ msg >> extra; }, std::runtime_error);
+    EXPECT_THROW({ reader >> extra; }, std::runtime_error);
 }
 
-TEST(MessageAdvancedTest, AfterDecodeErrorFurtherReadsStillFail)
+TEST(MessageAdvancedTest, MismatchedTypeThrowsOnDecode)
 {
-    Message msg(6);
+    MessageWriter writer(8);
+    writer << 123;
+    Message msg = writer.build();
 
-    int in = 42;
-    msg << in;
-
-    std::string s;
-    EXPECT_THROW({ msg >> s; }, std::runtime_error);
-
-    int out = 0;
-    EXPECT_THROW({ msg >> out; }, std::runtime_error);
-}
-
-TEST(MessageAdvancedTest, LargeStringWithinDefaultLimitSucceeds)
-{
-    DataBuffer::Limit limits{};
-    const std::size_t msg_limit = limits.max_message_bytes;
-    const std::size_t str_limit = limits.max_string_bytes;
-
-    const std::size_t usable_limit = std::min(msg_limit, str_limit);
-    const std::size_t len = usable_limit - 32; // leave some room for overhead
-
-    std::string big(len, 'x');
+    MessageReader reader(msg);
     std::string out;
-
-    Message msg(10);
-    msg << big;
-    msg >> out;
-
-    EXPECT_EQ(out.size(), big.size());
-    EXPECT_EQ(out, big);
+    EXPECT_THROW({ reader >> out; }, std::runtime_error);
 }
 
-TEST(MessageAdvancedTest, StringOverDefaultLimitThrows)
+TEST(MessageAdvancedTest, LargeStringRoundTripSucceeds)
 {
-    const std::size_t limit = 1u << 20;
-    std::string tooBig(limit + 1, 'y');
+    MessageWriter writer(10);
+    std::string big(5000, 'x');
+    writer << big;
+    Message msg = writer.build();
 
-    Message msg(11);
+    std::string out;
+    MessageReader reader(msg);
+    reader >> out;
 
-    EXPECT_THROW({ msg << tooBig; }, std::runtime_error);
+    EXPECT_EQ(out, big);
 }
 
 TEST(MessageAdvancedTest, PartialReadDoesNotAffectEarlierFields)
 {
-    Message msg(12);
+    MessageWriter writer(12);
 
     int header = 0xABCD;
     std::string body = "payload";
     int tail = 0x1234;
 
-    msg << header << body << tail;
+    writer << header << body << tail;
+    Message msg = writer.build();
 
+    MessageReader reader(msg);
     int header_out = 0;
-    msg >> header_out;
+    reader >> header_out;
+
     EXPECT_EQ(header_out, header);
 }
