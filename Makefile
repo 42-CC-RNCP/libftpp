@@ -1,6 +1,14 @@
 NAME = libtpp
 BUILD_DIR = build
 MODULES = data_structures design_patterns tpp_iostream mathematics network threading
+MODULE_LIBS = \
+	$(BUILD_DIR)/src/data_structures/libdata_structures.a \
+	$(BUILD_DIR)/src/design_patterns/libdesign_patterns.a \
+	$(BUILD_DIR)/src/iostream/libtpp_iostream.a \
+	$(BUILD_DIR)/src/mathematics/libmathematics.a \
+	$(BUILD_DIR)/src/network/libnetwork.a \
+	$(BUILD_DIR)/src/threading/libthreading.a
+LIB_PATH = $(BUILD_DIR)/$(NAME).a
 TEST_TARGETS = \
     test_data_structures \
     test_memento \
@@ -12,14 +20,28 @@ TEST_TARGETS = \
 TEST_JOBS ?= $(shell nproc)
 
 .PHONY: all
-all: cmake_configure
-	@cmake --build $(BUILD_DIR) -- -q >/dev/null 2>&1; \
-	if [ $$? -eq 0 ]; then \
-		echo "make: Nothing to be done for 'all'."; \
-	else \
-		cmake --build $(BUILD_DIR) -- -s; \
-	fi
+all: $(LIB_PATH)
 	@ln -sf $(BUILD_DIR)/compile_commands.json compile_commands.json
+
+.PHONY: $(LIB_PATH)
+$(LIB_PATH): cmake_configure
+	@echo "[cmake] build all module libraries"
+	@cmake --build $(BUILD_DIR) --target $(MODULES) -- -s
+	@echo "[ar] merge module archives -> $(LIB_PATH)"
+	@{ \
+		echo "create $(NAME).a"; \
+		echo "addlib src/data_structures/libdata_structures.a"; \
+		echo "addlib src/design_patterns/libdesign_patterns.a"; \
+		echo "addlib src/iostream/libtpp_iostream.a"; \
+		echo "addlib src/mathematics/libmathematics.a"; \
+		echo "addlib src/network/libnetwork.a"; \
+		echo "addlib src/threading/libthreading.a"; \
+		echo "save"; \
+		echo "end"; \
+	} | (cd $(BUILD_DIR) && ar -M)
+	@ranlib $(LIB_PATH)
+	@cp -f $(LIB_PATH) ./$(NAME).a
+	@echo "[ar] library $(NAME) created successfully"
 
 .PHONY: $(MODULES)
 $(MODULES): cmake_configure
@@ -68,7 +90,7 @@ help:
 	@echo "Usage: make <target>"
 	@echo ""
 	@echo "Main targets:"
-	@echo "  all              - Configure (if needed) and build all libraries"
+	@echo "  all              - Configure (if needed), build modules, and pack $(NAME)"
 	@echo "  tests            - Build tests, run modules in parallel, show . / x progress"
 	@echo "  clean            - Clean build artifacts inside $(BUILD_DIR)"
 	@echo "  fclean           - Remove $(BUILD_DIR) and compile_commands.json"

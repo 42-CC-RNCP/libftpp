@@ -1,8 +1,10 @@
 # src/mathematics/CMakeLists.txt
 
-add_library(mathematics INTERFACE)
+add_library(mathematics STATIC
+    mathematics.cpp
+)
 
 target_include_directories(mathematics
-    INTERFACE
+    PUBLIC
         ${PROJECT_SOURCE_DIR}/include
 )

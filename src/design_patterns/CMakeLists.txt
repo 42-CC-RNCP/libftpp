@@ -1,6 +1,8 @@
 # src/design_patterns/CMakeLists.txt
 
-add_library(design_patterns INTERFACE)
+add_library(design_patterns STATIC
+    observer.cpp
+)
 
 target_include_directories(design_patterns
     PUBLIC
