@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "[pre-push] running regression tests..."
-./scripts/run_regression.sh
+echo "[pre-push] running tests (pretty mode)..."
+make tests
