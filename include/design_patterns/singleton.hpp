@@ -7,10 +7,10 @@
 template <class TType> class Singleton
 {
 public:
-    static TType* instance()
+    static std::shared_ptr<TType> instance()
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        TType* p = ptr_.get();
+        auto p = ptr_;
 
         if (!p) {
             throw std::runtime_error("Singleton not instantiated");
@@ -23,7 +23,7 @@ public:
         if (ptr_) {
             throw std::runtime_error("Singleton already instantiated");
         }
-        ptr_ = std::make_unique<TType>(std::forward<TArgs>(p_args)...);
+        ptr_ = std::make_shared<TType>(std::forward<TArgs>(p_args)...);
     }
     static void destroy()
     {
@@ -38,6 +38,6 @@ private:
     Singleton& operator=(const Singleton&) = delete;
 
 private:
-    inline static std::unique_ptr<TType> ptr_{nullptr};
+    inline static std::shared_ptr<TType> ptr_{nullptr};
     inline static std::mutex mutex_{};
 };
