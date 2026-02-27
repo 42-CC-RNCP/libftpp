@@ -86,6 +86,13 @@ add_libtpp_test(test_network
     network
 )
 
+add_libtpp_test(test_mathematics
+  SRCS
+    ivector_test.cpp
+  LIBS
+    mathematics
+)
+
 foreach(t IN LISTS TEST_TARGETS)
   gtest_discover_tests(${t}
     TEST_PREFIX "${t}."

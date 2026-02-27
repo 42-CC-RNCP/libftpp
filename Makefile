@@ -16,7 +16,8 @@ TEST_TARGETS = \
     test_singleton \
     test_state_machine \
     test_threading \
-	test_network
+	test_network \
+	test_mathematics
 TEST_JOBS ?= $(shell nproc)
 
 .PHONY: all
@@ -107,12 +108,13 @@ help:
 	@echo "  make threading           # build threading module"
 	@echo "  make test_threading      # build and run threading-related tests"
 	@echo "  make test_data_structures"
+	@echo "  make test_mathematics"
 
 .PHONY: cmake_configure
 cmake_configure:
 	@if [ ! -f "$(BUILD_DIR)/CMakeCache.txt" ]; then \
 		echo "[cmake] configure..."; \
-		cmake -B$(BUILD_DIR) -S .; \
 	else \
-		echo "[cmake] reuse existing build dir"; \
+		echo "[cmake] refresh configure..."; \
 	fi
+	@cmake -B$(BUILD_DIR) -S .
