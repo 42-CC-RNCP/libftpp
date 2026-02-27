@@ -28,7 +28,7 @@ public:
     static void destroy()
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        ptr_.reset(nullptr);
+        ptr_.reset();
     }
 
 private:
