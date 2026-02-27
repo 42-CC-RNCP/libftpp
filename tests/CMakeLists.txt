@@ -71,15 +71,15 @@ add_libtpp_test(test_threading
 
 add_libtpp_test(test_network
   SRCS
-    # message_test.cpp
-    # byte_queue_test.cpp
-    # length_prefixed_codec_test.cpp
-    # connection_test.cpp
-    # dispatcher_test.cpp
-    # tcp_transport_test.cpp
-    # tcp_acceptor_test.cpp
-    # client_test.cpp
-    # server_test.cpp
+    byte_queue_test.cpp
+    dispatcher_test.cpp
+    tcp_transport_test.cpp
+    tcp_acceptor_test.cpp
+    length_prefixed_codec_test.cpp
+    connection_test.cpp
+    message_test.cpp
+    client_test.cpp
+    server_test.cpp
     network_integration_test.cpp
   LIBS
     data_structures
