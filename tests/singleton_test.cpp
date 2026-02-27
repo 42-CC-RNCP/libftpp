@@ -28,7 +28,7 @@ TEST(SingletonTest, InstantiateOnceSucceeds)
 {
     PSingle::destroy();
     PSingle::instantiate(42, "hi");
-    auto* p = PSingle::instance();
+    auto p = PSingle::instance();
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(p->x, 42);
     EXPECT_EQ(p->s, "hi");
@@ -40,7 +40,7 @@ TEST(SingletonTest, DoubleInstantiateThrows)
     PSingle::destroy();
     PSingle::instantiate(1, "a");
     EXPECT_THROW(PSingle::instantiate(2, "b"), std::runtime_error);
-    auto* p = PSingle::instance();
+    auto p = PSingle::instance();
     EXPECT_EQ(p->x, 1);
     EXPECT_EQ(p->s, "a");
     EXPECT_EQ(Probe::live.load(), 1);
@@ -56,7 +56,7 @@ TEST(SingletonTest, DestroyThenReinstantiateWorks)
     EXPECT_EQ(Probe::live.load(), 0);
 
     PSingle::instantiate(9, "second");
-    auto* p = PSingle::instance();
+    auto p = PSingle::instance();
     EXPECT_EQ(p->x, 9);
     EXPECT_EQ(p->s, "second");
     EXPECT_EQ(Probe::live.load(), 1);
@@ -87,7 +87,7 @@ TEST(SingletonTest, ConcurrentInstantiateOnlyOneWins)
 
     EXPECT_EQ(success.load(), 1);
     EXPECT_EQ(failures.load(), 15);
-    auto* p = PSingle::instance();
+    auto p = PSingle::instance();
     ASSERT_NE(p, nullptr);
     EXPECT_EQ(p->x, 3);
     EXPECT_EQ(p->s, "concurrent");
