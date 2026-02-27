@@ -1,0 +1,23 @@
+name: Regression Tests
+
+on:
+  pull_request:
+    branches:
+      - "main"
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -S . -B build
+
+      - name: Build tests
+        run: cmake --build build --target libftpp_tests -j
+
+      - name: Run regression tests
+        run: ./scripts/run_regression.sh
