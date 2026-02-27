@@ -31,14 +31,8 @@ public:
     {
     }
 
-    ~Connection()
-    {
-        // best effort to clean up, actual socket close will be handled by
-        // transport
-        if (wantsWrite()) {
-            onWritable();
-        }
-    }
+    // drop buffer content, actual socket close will be handled by transport
+    ~Connection() = default;
 
     void connect(Endpoint& ep) { transport_.connect(ep); }
 
@@ -57,6 +51,7 @@ public:
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 return {IoStatus::WouldBlock, 0, 0, ""};
             }
+            close();
             return {IoStatus::Error, 0, errno, "Error reading from transport"};
         }
         else if (n == 0) {
@@ -88,6 +83,7 @@ public:
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 return {IoStatus::WouldBlock, 0, 0, ""};
             }
+            close();
             return {IoStatus::Error, 0, errno, "Error writing to transport"};
         }
         else if (n == 0) {
