@@ -1,5 +1,6 @@
 // tests/connection_test.cpp
 #include "network/components/connection.hpp"
+#include "network/components/message_builder.hpp"
 #include "network/contracts/stream_transport.hpp"
 #include "network/impl/codec/length_prefixed_codec.hpp"
 #include <gmock/gmock.h>
@@ -19,6 +20,7 @@ public:
     MOCK_METHOD(ssize_t, recvBytes, (std::byte*, size_t), (override));
     MOCK_METHOD(ssize_t, sendBytes, (const std::byte*, size_t), (override));
     MOCK_METHOD(bool, isConnected, (), (const, override));
+    MOCK_METHOD(int, nativeHandle, (), (const, override));
 };
 
 class ConnectionTest : public ::testing::Test
@@ -81,8 +83,6 @@ TEST_F(ConnectionTest, OnReadableWithZeroBytesClosesConnection)
 {
     EXPECT_CALL(*transport_, recvBytes(_, _)).WillOnce(Return(0));
 
-    EXPECT_CALL(*transport_, disconnect());
-
     auto result = connection_->onReadable();
 
     EXPECT_EQ(result.status, Connection::IoStatus::Closed);
@@ -101,6 +101,7 @@ TEST_F(ConnectionTest, OnReadableWithErrorReturnsError)
 
     EXPECT_EQ(result.status, Connection::IoStatus::Error);
     EXPECT_GT(result.sys_errno, 0);
+    EXPECT_TRUE(connection_->isClosed());
 }
 
 TEST_F(ConnectionTest, OnWritableWithoutQueuedDataReturnsOk)
@@ -132,8 +133,6 @@ TEST_F(ConnectionTest, OnWritableWithZeroBytesClosesConnection)
 
     EXPECT_CALL(*transport_, sendBytes(_, _)).WillOnce(Return(0));
 
-    EXPECT_CALL(*transport_, disconnect());
-
     auto result = connection_->onWritable();
 
     EXPECT_EQ(result.status, Connection::IoStatus::Closed);
@@ -145,18 +144,23 @@ TEST_F(ConnectionTest, OnWritableWithErrorReturnsError)
     Message msg(42);
     connection_->queue(msg);
 
-    EXPECT_CALL(*transport_, sendBytes(_, _)).WillOnce(Return(-1));
+    EXPECT_CALL(*transport_, sendBytes(_, _))
+        .WillOnce([](const std::byte*, std::size_t) -> ssize_t {
+            errno = EPIPE;
+            return -1;
+        });
 
     auto result = connection_->onWritable();
 
     EXPECT_EQ(result.status, Connection::IoStatus::Error);
+    EXPECT_GT(result.sys_errno, 0);
+    EXPECT_TRUE(connection_->isClosed());
 }
 
 TEST_F(ConnectionTest, OnWritableWhenClosedReturnsClosedStatus)
 {
     // First close the connection
     EXPECT_CALL(*transport_, recvBytes(_, _)).WillOnce(Return(0));
-    EXPECT_CALL(*transport_, disconnect());
     connection_->onReadable();
 
     // Now try to write
@@ -188,9 +192,10 @@ TEST_F(ConnectionTest, MultipleOnReadableAccumulatesData)
 
 TEST_F(ConnectionTest, PartialSendIsHandledCorrectly)
 {
-    Message msg(42);
+    MessageWriter writer(42);
     int payload = 12345;
-    msg << payload;
+    writer << payload;
+    Message msg = writer.build();
 
     connection_->queue(msg);
 
@@ -218,9 +223,10 @@ TEST_F(ConnectionTest, TryDecodeOnEmptyBufferReturnsNeedMoreData)
 TEST_F(ConnectionTest, TryDecodeAfterReceivingCompleteMessage)
 {
     // Create a complete encoded message
-    Message original(42);
+    MessageWriter writer(42);
     int value = 999;
-    original << value;
+    writer << value;
+    Message original = writer.build();
 
     // Encode it
     DataBufferByteQueue tempQueue;
@@ -246,7 +252,8 @@ TEST_F(ConnectionTest, TryDecodeAfterReceivingCompleteMessage)
     EXPECT_EQ(decoded.type(), 42u);
 
     int decodedValue = 0;
-    decoded >> decodedValue;
+    MessageReader reader(decoded);
+    reader >> decodedValue;
     EXPECT_EQ(decodedValue, value);
 }
 
@@ -288,8 +295,9 @@ TEST_F(ConnectionTest, SendCompleteClearsWantsWrite)
 TEST_F(ConnectionTest, ReceivePartialMessageThenComplete)
 {
     // Create encoded message
-    Message original(100);
-    original << 123;
+    MessageWriter writer(100);
+    writer << 123;
+    Message original = writer.build();
 
     DataBufferByteQueue tempQueue;
     codec_->encode(original, tempQueue);
