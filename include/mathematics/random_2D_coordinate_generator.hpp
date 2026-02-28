@@ -55,101 +55,84 @@ private:
 
 /*
 
-Example with 8bits number generator:
+8-bit illustration (x=3, y=2, seed=0):
+  WEYL_CONST(8-bit) = 1001 1110
+  ODD_CONST (8-bit) = 1011 0101
 
-X = 0000 0011
-Y = 0000 0010
+Note: this example illustrates the mechanism of diffusion and confusion only.
+True SAC requires 64-bit constants (~32 of 64 bits set), which provide enough
+carry propagation across all bit positions. With only 8 bits, the effect is
+visible but weaker.
 
-Target:
-1. mix X, Y and seed together to get a state that has no structure of the input,
-e.g. 1010 1101
-2. And the result we want is hash(X, Y) should have 4 bits changed, e.g. 1010
-1101, which has 4 bits different from the input.
+--- Step 1: combine x and y into a single state ---
 
-so base on the solution above, with XOR-shift and const multiplication:
+  hash  = 0000 0011             (= x = 3)
+  y * WEYL = 2 * 1001 1110
+           = 0011 1100          (= 60)
+  hash ^= 0011 1100
+        = 0011 1111             (= 63)
 
-Step1:
-(x=3, y=2):
-  hash = 0000 0011
-  hash ^= 0000 0010 * 1001 1110 = 0011 1100
-  result = 0011 1111
-(x=2, y=3):
-    hash = 0000 0010
-    hash ^= 0000 0011 * 1001 1110 = 0101 1010
-    result = 0101 1000
+Symmetry check: hash(3,2) != hash(2,3) because x contributes directly
+  while y is scaled by WEYL, giving each axis a different step size.
 
-(x=3, y=2) → hash = x ^ (y * C)
-           = 0000 0011 ^ (2 * C)
+--- Step 2.1: XOR-shift >> 2 (diffusion: high bits → low bits) ---
 
-(x=2, y=3) → hash = x ^ (y * C)
-           = 0000 0010 ^ (3 * C)
+  hash        = 0011 1111
+  hash >> 2   = 0000 1111
+  XOR         = 0011 0000      ← bits 4-5 now carry info from bits 6-7
 
+  * ODD_CONST = 1011 0101, 1-bits at positions: [0, 2, 4, 5, 7]
 
-the result is different, without collision,
-because each dimension has different step size (C and 2C) across the 64-bit
-space, so they won't align to cause collisions.
+  0011 0000 << 0 = 0011 0000
+  0011 0000 << 2 = 1100 0000
+  0011 0000 << 4 = 0000 0000   (overflows 8-bit)
+  0011 0000 << 5 = 0000 0000   (overflows 8-bit)
+  0011 0000 << 7 = 0000 0000   (overflows 8-bit)
 
-Then we do XOR-shift and multiplication to further mix the bits, to achieve the
-avalanche effect.
+  sum = 0011 0000 + 1100 0000
+      = 1111 0000               (= 240, carry from bit 6 flips bit 7)
 
-Let's use (x=192, y=0, seed=0) as an example:
-X = 1100 0000 = 192
-Y = 0000 0000 = 0
-seed = 0
+  hash = 1111 0000
 
-hash = 1100 0000   (= x)
-hash ^= 0000 0000 * 1001 1110 = 0000 0000   (y=0, so no change)
-result = 1100 0000
+The carry during addition is the key: a difference in low bits propagates
+  upward through addition, spreading the change across more bit positions.
 
-Step2.1: XOR-shift >> 2
-hash = 1100 0000
-hash >> 2 = 0011 0000
-XOR       = 1111 0000 (the high bits are propagated down to low bits)
+--- Step 2.2: XOR-shift >> 3 (diffusion) then multiply (confusion) ---
 
-With XOR-shift, the high bits are propagated down to low bits, but the low bits
-are not yet fully mixed, so we do multiplication to further mix the bits via
-carry, which can cause about 4 bits change for a 1-bit input change.
+  hash        = 1111 0000
+  hash >> 3   = 0001 1110
+  XOR         = 1110 1110      ← high-bit structure now visible in low bits
 
-ODD_CONST(8bit) = 1011 0101, whcih 1-bit is on (0, 2, 4, 5, 7)
+  * WEYL_CONST = 1001 1110, 1-bits at positions: [1, 2, 3, 4, 7]
 
-1111 0000 << 0 = 1111 0000
-1111 0000 << 2 = 1100 0000
-1111 0000 << 4 = 0000 0000
-1111 0000 << 5 = 0000 0000
-1111 0000 << 7 = 0000 0000
+  1110 1110 << 1 = 1101 1100   (= 220)
+  1110 1110 << 2 = 1011 1000   (= 184)
+  1110 1110 << 3 = 0111 0000   (= 112)
+  1110 1110 << 4 = 1110 0000   (= 224)
+  1110 1110 << 7 = 0000 0000   (overflows 8-bit)
 
-=> sum = hash = 1011 0000
+  sum = 220 + 184 + 112 + 224 = 740 mod 256
+      = 1110 0100               (= 228)
 
-Then we do another round of XOR-shift and multiplication to further mix the
-bits, to achieve full SAC.
+  hash = 1110 0100
 
-Step 2.2: XOR-shift >> 3
-hash     = 1011 0000
-hash >> 3= 0001 0110
-XOR      = 1010 0110 <- the remaining high-bit structure is propagated down to
-low bits
+--- Step 2.3: final XOR-shift >> 4 (correct residual high-bit bias) ---
 
-WEYL_CONST(8bit) = 1001 1110, which has 1-bit on (1, 2, 3, 4, 7)
-1010 0110 << 1 = 0100 1100
-1010 0110 << 2 = 1001 1000
-1010 0110 << 3 = 0010 0000
-1010 0110 << 4 = 0100 0000
-1010 0110 << 7 = 0000 0000
+  hash        = 1110 0100
+  hash >> 4   = 0000 1110
+  XOR         = 1110 1010      (= 234)
 
-=> sum = hash = 0100 0100
+--- Result ---
 
-Finally, we do one more XOR-shift to correct any residual high-bit bias, to get
-the final result.
+  hash(3, 2) = 1110 1010
 
-Step 2.3: XOR-shift >> 4
-hash     = 0100 0100
-hash >> 4= 0000 0100
-XOR      = 0100 0000
+--- SAC check: flip bit 0 of x (x=3 → x=2) ---
 
-input:  1100 0000, (x=192, y=0, seed=0)
-output: 0100 0000
+  hash(3, 2) = 1110 1010
+  hash(2, 2) = 0011 1101
+  XOR diff   = 1101 0111      ← 6 out of 8 bits changed (75%)
 
-8bits is not enough to show the full effect, but with 64bits, we can achieve
-about 32 bits change for a 1-bit input change, which meets the SAC requirement.
+  In 64-bit this stabilises at ~50% (32 of 64 bits), satisfying SAC.
+  The 8-bit result is noisier due to limited carry propagation range.
 
 */
