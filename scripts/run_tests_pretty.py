@@ -35,25 +35,29 @@ class ProgressPrinter:
         self.total = total
         self.width = width
         self.current = 0
-        self.use_color = sys.stdout.isatty() and os.getenv("NO_COLOR") is None
+        self.use_color = os.getenv("NO_COLOR") is None
         self.green = "\033[32m" if self.use_color else ""
         self.red = "\033[31m" if self.use_color else ""
         self.reset = "\033[0m" if self.use_color else ""
         self.started = False
 
+    def color_symbol(self, symbol: str, passed: bool) -> str:
+        if passed:
+            return f"{self.green}{symbol}{self.reset}"
+        return f"{self.red}{symbol}{self.reset}"
+
     def start(self) -> None:
         if self.started:
             return
         self.started = True
-        print("\nProgress (.=pass, x=fail):")
+        dot = self.color_symbol(".", True)
+        cross = self.color_symbol("x", False)
+        print(f"\nProgress ({dot}=pass, {cross}=fail):")
 
     def write_case(self, passed: bool) -> None:
         self.start()
         symbol = "." if passed else "x"
-        if passed:
-            token = f"{self.green}{symbol}{self.reset}"
-        else:
-            token = f"{self.red}{symbol}{self.reset}"
+        token = self.color_symbol(symbol, passed)
 
         print(token, end="", flush=True)
         self.current += 1
@@ -125,8 +129,11 @@ def run_module(build_dir: str, module: str, xml_path: Path) -> ModuleResult:
 
 
 def print_progress(cases: list[CaseResult], width: int = 50) -> None:
-    print("\nProgress (.=pass, x=fail):")
-    symbols = ["." if case.passed else "x" for case in cases]
+    progress = ProgressPrinter(total=max(len(cases), 1), width=width)
+    dot = progress.color_symbol(".", True)
+    cross = progress.color_symbol("x", False)
+    print(f"\nProgress ({dot}=pass, {cross}=fail):")
+    symbols = [progress.color_symbol(".", True) if case.passed else progress.color_symbol("x", False) for case in cases]
     if not symbols:
         print("(no tests)")
         return
