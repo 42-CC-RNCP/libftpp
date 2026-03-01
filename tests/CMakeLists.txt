@@ -89,6 +89,7 @@ add_libtpp_test(test_network
 add_libtpp_test(test_mathematics
   SRCS
     ivector_test.cpp
+    perlin_noise_2d_test.cpp
     random_2d_coordinate_generator_test.cpp
   LIBS
     mathematics
