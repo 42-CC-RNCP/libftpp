@@ -53,6 +53,83 @@ double pearson_correlation(const std::vector<double>& a,
     return static_cast<double>(numerator / denominator);
 }
 
+TEST(Random2DCoordinateGeneratorTest, DeterministicForSameInputAndSeed)
+{
+    Random2DCoordinateGenerator generator_a;
+    Random2DCoordinateGenerator generator_b;
+
+    EXPECT_EQ(generator_a.seed(), generator_b.seed());
+
+    constexpr long long x = 123456789LL;
+    constexpr long long y = -987654321LL;
+
+    const long long first = generator_a(x, y);
+    const long long second = generator_a(x, y);
+    const long long third = generator_a(x, y);
+    const long long from_other_instance = generator_b(x, y);
+
+    EXPECT_EQ(first, second);
+    EXPECT_EQ(second, third);
+    EXPECT_EQ(first, from_other_instance);
+}
+
+TEST(Random2DCoordinateGeneratorTest, DifferentSeedsChangeOutput)
+{
+    Random2DCoordinateGenerator generator_a;
+    Random2DCoordinateGenerator generator_b;
+
+    generator_a.set_seed(7);
+    generator_b.set_seed(11);
+
+    const std::array<std::pair<long long, long long>, 8> coordinates = {
+        std::pair<long long, long long>{0, 0},
+        std::pair<long long, long long>{1, 0},
+        std::pair<long long, long long>{0, 1},
+        std::pair<long long, long long>{7, 13},
+        std::pair<long long, long long>{42, -17},
+        std::pair<long long, long long>{-100, 100},
+        std::pair<long long, long long>{123456, 654321},
+        std::pair<long long, long long>{-999999, 333333}};
+
+    bool found_difference = false;
+    for (const auto& [x, y] : coordinates) {
+        if (generator_a(x, y) != generator_b(x, y)) {
+            found_difference = true;
+            break;
+        }
+    }
+
+    EXPECT_TRUE(found_difference);
+}
+
+TEST(Random2DCoordinateGeneratorTest, ResettingSameSeedReproducesSameSequence)
+{
+    Random2DCoordinateGenerator generator;
+
+    const std::array<std::pair<long long, long long>, 8> coordinates = {
+        std::pair<long long, long long>{0, 0},
+        std::pair<long long, long long>{1, 0},
+        std::pair<long long, long long>{0, 1},
+        std::pair<long long, long long>{7, 13},
+        std::pair<long long, long long>{42, -17},
+        std::pair<long long, long long>{-100, 100},
+        std::pair<long long, long long>{123456, 654321},
+        std::pair<long long, long long>{-999999, 333333}};
+
+    generator.set_seed(20260301LL);
+    std::array<long long, coordinates.size()> first_pass{};
+    for (size_t i = 0; i < coordinates.size(); ++i) {
+        first_pass[i] = generator(coordinates[i].first, coordinates[i].second);
+    }
+
+    generator.set_seed(20260301LL);
+    for (size_t i = 0; i < coordinates.size(); ++i) {
+        const long long second_pass =
+            generator(coordinates[i].first, coordinates[i].second);
+        EXPECT_EQ(first_pass[i], second_pass);
+    }
+}
+
 TEST(Random2DCoordinateGeneratorTest, UniformityChiSquareAcrossBuckets)
 {
     Random2DCoordinateGenerator generator;

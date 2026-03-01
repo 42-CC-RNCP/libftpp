@@ -44,6 +44,7 @@ public:
         return hash;
     }
     long long seed() const { return seed_; }
+    void set_seed(const long long seed) { seed_ = seed; }
 
 private:
     // Weyl sequence constant can make each step more uniformly distributed
