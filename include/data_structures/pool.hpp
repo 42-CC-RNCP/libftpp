@@ -9,9 +9,7 @@
 #include <utility>
 #include <vector>
 
-
-template <typename TType>
-class Pool
+template <typename TType> class Pool
 {
     using Slot = std::optional<TType>;
     using It = typename std::list<Slot>::iterator;
@@ -22,13 +20,13 @@ public:
     public:
         Object(It it, Pool<U>* owner) : it_(it), owner_(owner) {}
 
-        Object(Object&& other) noexcept
-            : it_(other.it_), owner_(other.owner_)
+        Object(Object&& other) noexcept : it_(other.it_), owner_(other.owner_)
         {
             other.owner_ = nullptr;
         }
 
-        Object& operator=(Object&& other) noexcept {
+        Object& operator=(Object&& other) noexcept
+        {
             if (this != &other) {
                 it_ = other.it_;
                 owner_ = other.owner_;
@@ -37,7 +35,8 @@ public:
             return *this;
         }
 
-        ~Object() {
+        ~Object()
+        {
             if (owner_) {
                 owner_->_release(it_);
                 owner_ = nullptr;
@@ -45,9 +44,9 @@ public:
         }
 
         U* operator->() { return &it_->value(); }
-        U& operator*()  { return it_->value(); }
+        U& operator*() { return it_->value(); }
         const U* operator->() const { return &it_->value(); }
-        const U& operator*()  const { return it_->value();  }
+        const U& operator*() const { return it_->value(); }
 
         Object(const Object& other) = delete;
         Object& operator=(const Object& other) = delete;
@@ -57,14 +56,12 @@ public:
         Pool<U>* owner_{};
     };
 
-
-    Pool(size_t n) {
-        resize(n);
-    }
+    Pool(size_t n) { resize(n); }
     ~Pool() = default;
 
     // const size_t& is worse then just size_t by value as a rule
-    void resize(const size_t& numberOfObjectStored) {
+    void resize(const size_t& numberOfObjectStored)
+    {
         auto newSize = numberOfObjectStored;
         auto S = storage_.size();
 
@@ -89,10 +86,11 @@ public:
         }
     }
 
-    template <typename... TArgs>
-    Object<TType> acquire(TArgs&&... args) {
-        if (available_.empty())
+    template <typename... TArgs> Object<TType> acquire(TArgs&&... args)
+    {
+        if (available_.empty()) {
             throw std::runtime_error("no object is available.");
+        }
 
         It it = available_.back();
         available_.pop_back();
@@ -100,7 +98,8 @@ public:
         try {
             // *it = TType(std::forward<TArgs>(args)...);
             it->emplace(std::forward<TArgs>(args)...);
-        } catch (...) {
+        }
+        catch (...) {
             *it = std::nullopt;
             available_.push_back(it);
             throw;
@@ -111,7 +110,8 @@ public:
 
 private:
     friend class Object<TType>;
-    void _release(It it) {
+    void _release(It it)
+    {
         *it = std::nullopt;
         available_.push_back(it);
     }

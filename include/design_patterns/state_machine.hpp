@@ -1,8 +1,8 @@
 #pragma once
 #include <functional>
+#include <optional>
 #include <stdexcept>
 #include <unordered_map>
-#include <optional>
 #include <unordered_set>
 
 template <class TState> class StateMachine
@@ -98,7 +98,7 @@ public:
     ~StateMachine() = default;
 
 private:
-    std::optional<TState> currentState_; 
+    std::optional<TState> currentState_;
     std::unordered_set<TState> states_;
     std::unordered_map<TState, std::function<void()>> actions_;
     // need to use nested map to avoid pair hash issues

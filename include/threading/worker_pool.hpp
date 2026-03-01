@@ -38,7 +38,7 @@ public:
 
 private:
     size_t numberOfWorkers_;
-    // 
+    //
     ThreadSafeQueue<std::shared_ptr<IJob>> jobQueue_;
     std::vector<std::unique_ptr<Thread>> workers_;
 };

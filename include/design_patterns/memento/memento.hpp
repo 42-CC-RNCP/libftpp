@@ -49,9 +49,10 @@ public:
 
 protected:
     // provide access to Snapshot's io
-    // eventhough Snapshot is private nested, Memento can access its private members because of friendship
-    // but the derived classes cannot access Snapshot's private members directly
-    // so we provide these static helper functions
+    // eventhough Snapshot is private nested, Memento can access its private
+    // members because of friendship but the derived classes cannot access
+    // Snapshot's private members directly so we provide these static helper
+    // functions
     static SnapIO& stream(Snapshot& s) { return s.io(); }
     static const SnapIO& stream(const Snapshot& s) { return s.io(); }
 

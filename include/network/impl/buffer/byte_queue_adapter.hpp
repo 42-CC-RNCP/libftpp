@@ -1,7 +1,7 @@
 // network/impl/buffer/byte_queue_adapter.hpp
 #pragma once
-#include "network/contracts/byte_queue.hpp"
 #include "data_structures/data_buffer.hpp"
+#include "network/contracts/byte_queue.hpp"
 
 class DataBufferByteQueue : public ByteQueue
 {

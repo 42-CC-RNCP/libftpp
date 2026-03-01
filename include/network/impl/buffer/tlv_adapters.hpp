@@ -1,10 +1,10 @@
 // network/impl/buffer/tlv_adapters.hpp
 #pragma once
+#include "byte_queue_adapter.hpp"
+#include "data_structures/tlv.hpp"
+#include <cstring>
 #include <span>
 #include <stdexcept>
-#include <cstring>
-#include "data_structures/tlv.hpp"
-#include "byte_queue_adapter.hpp"
 
 namespace tlv_adapt
 {

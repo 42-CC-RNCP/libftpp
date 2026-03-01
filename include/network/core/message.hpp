@@ -1,8 +1,8 @@
 // network/core/message.hpp
 #pragma once
+#include <cstddef>
 #include <cstdint>
 #include <vector>
-#include <cstddef>
 
 class Message
 {

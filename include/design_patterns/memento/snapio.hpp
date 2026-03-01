@@ -1,12 +1,12 @@
 // include/design_patterns/memento/snapio.hpp
 #pragma once
-#include <vector>
 #include "data_structures/data_buffer.hpp"
 #include <cstddef>
 #include <cstring>
 #include <memory>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 class SnapIO
 {
