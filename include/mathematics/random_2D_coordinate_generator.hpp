@@ -51,7 +51,7 @@ private:
     // the odd constant can help to further mix the bits.
     const long long weyl_sequence_ = 0x9e3779b97f4a7c15ULL;
     const long long odd_const_ = 0xbf58476d1ce4e5b9ULL;
-    long long seed_ = 0;
+    long long seed_ = 42;
 };
 
 /*
