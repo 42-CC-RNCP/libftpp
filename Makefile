@@ -18,6 +18,8 @@ TEST_TARGETS = \
     test_threading \
 	test_network \
 	test_mathematics
+EXAMPLE_TARGETS = \
+	perlin_noise_visualization
 TEST_JOBS ?= $(shell nproc)
 
 .PHONY: all
@@ -76,6 +78,16 @@ tests: cmake_configure
 		--build-dir $(BUILD_DIR) \
 		--jobs $(TEST_JOBS) \
 		$(TEST_TARGETS)
+
+.PHONY: examples
+examples: cmake_configure
+	@echo "[cmake] build example targets"
+	@cmake --build $(BUILD_DIR) --target $(EXAMPLE_TARGETS) -- -s
+
+.PHONY: $(EXAMPLE_TARGETS)
+$(EXAMPLE_TARGETS): cmake_configure
+	@echo "[cmake] build example target $@"
+	@cmake --build $(BUILD_DIR) --target $@ -- -s
 	
 
 # ---- test by module ----
@@ -93,6 +105,7 @@ help:
 	@echo "Main targets:"
 	@echo "  all              - Configure (if needed), build modules, and pack $(NAME)"
 	@echo "  tests            - Build tests, run modules in parallel, show . / x progress"
+	@echo "  examples         - Build all example executables"
 	@echo "  clean            - Clean build artifacts inside $(BUILD_DIR)"
 	@echo "  fclean           - Remove $(BUILD_DIR) and compile_commands.json"
 	@echo "  re               - fclean + all"
@@ -103,7 +116,12 @@ help:
 	@echo "Test targets (per group):"
 	@$(foreach t,$(TEST_TARGETS),echo "  $(t)$(shell printf '\n')";)
 	@echo ""
+	@echo "Example targets:"
+	@$(foreach e,$(EXAMPLE_TARGETS),echo "  $(e)$(shell printf '\n')";)
+	@echo ""
 	@echo "Examples:"
+	@echo "  make examples            # build all examples"
+	@echo "  make perlin_noise_visualization"
 	@echo "  make tests TEST_JOBS=8  # run all tests with 8 parallel jobs"
 	@echo "  make threading           # build threading module"
 	@echo "  make test_threading      # build and run threading-related tests"

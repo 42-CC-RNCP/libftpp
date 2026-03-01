@@ -26,6 +26,7 @@ add_subdirectory(src/iostream)
 add_subdirectory(src/mathematics)
 add_subdirectory(src/network)
 add_subdirectory(src/threading)
+add_subdirectory(examples)
 
 add_library(libftpp INTERFACE)
 
