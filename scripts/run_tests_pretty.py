@@ -30,6 +30,44 @@ class ModuleResult:
     command_error: str
 
 
+def is_memcheck_success(return_code: int, output: str) -> bool:
+    if return_code != 0:
+        return False
+
+    if re.search(r"The following tests FAILED:", output, re.IGNORECASE):
+        return False
+
+    failed_count = re.search(r"(\d+) tests failed out of (\d+)", output, re.IGNORECASE)
+    if failed_count and int(failed_count.group(1)) > 0:
+        return False
+
+    if re.search(r"Defects:\s*[1-9]\d*", output):
+        return False
+
+    return True
+
+
+def memcheck_failure_message(output: str) -> str:
+    if re.search(r"Defects:\s*[1-9]\d*", output):
+        return "memcheck found memory defects"
+    if re.search(r"The following tests FAILED:", output, re.IGNORECASE):
+        return "ctest reported failed test"
+    return "memcheck failed"
+
+
+def list_tests(build_dir: str, module: str) -> list[str]:
+    cmd = ["ctest", "--test-dir", build_dir, "-N", "-R", f"^{module}\\."]
+    completed = subprocess.run(cmd, capture_output=True, text=True)
+    output = (completed.stdout or "") + (completed.stderr or "")
+
+    names: list[str] = []
+    for line in output.splitlines():
+        match = re.search(r"Test\s+#\d+:\s+(.+)$", line.strip())
+        if match:
+            names.append(match.group(1).strip())
+    return names
+
+
 class ProgressPrinter:
     def __init__(self, total: int, width: int = 80):
         self.total = total
@@ -65,7 +103,61 @@ class ProgressPrinter:
             print(f"  ({self.current}/{self.total})", flush=True)
 
 
-def run_module(build_dir: str, module: str, xml_path: Path) -> ModuleResult:
+def run_module(build_dir: str, module: str, xml_path: Path, mode: str) -> ModuleResult:
+    if mode == "memcheck":
+        test_names = list_tests(build_dir, module)
+        if not test_names:
+            return ModuleResult(
+                module=module,
+                return_code=2,
+                cases=[],
+                raw_output="",
+                command_error=f"No tests discovered for {module}",
+            )
+
+        cases: list[CaseResult] = []
+        outputs: list[str] = []
+        module_rc = 0
+
+        for test_name in test_names:
+            cmd = [
+                "ctest",
+                "--test-dir",
+                build_dir,
+                "-R",
+                f"^{re.escape(test_name)}$",
+                "-j",
+                "1",
+                "--output-on-failure",
+                "-T",
+                "memcheck",
+            ]
+            completed = subprocess.run(cmd, capture_output=True, text=True)
+            output = (completed.stdout or "") + (completed.stderr or "")
+            outputs.append(output)
+
+            passed = is_memcheck_success(completed.returncode, output)
+            if not passed:
+                module_rc = completed.returncode
+
+            cases.append(
+                CaseResult(
+                    module=module,
+                    name=test_name,
+                    passed=passed,
+                    failure_message=memcheck_failure_message(output) if not passed else "",
+                    failure_detail=output.strip() if not passed else "",
+                )
+            )
+
+        return ModuleResult(
+            module=module,
+            return_code=module_rc,
+            cases=cases,
+            raw_output="\n".join(outputs),
+            command_error="",
+        )
+
     cmd = [
         "ctest",
         "--test-dir",
@@ -160,10 +252,18 @@ def shorten(text: str, limit: int = 600) -> str:
     return text[:limit].rstrip() + "\n... (truncated)"
 
 
+def maybe_shorten(text: str, full_detail: bool, limit: int = 600) -> str:
+    if full_detail:
+        return text
+    return shorten(text, limit=limit)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run ctest modules in parallel with concise progress output")
     parser.add_argument("--build-dir", required=True)
     parser.add_argument("--jobs", type=int, default=os.cpu_count() or 1)
+    parser.add_argument("--mode", choices=["normal", "memcheck"], default="normal")
+    parser.add_argument("--full-detail", action="store_true", help="Print full failure and module error output without truncation")
     parser.add_argument("modules", nargs="+")
     args = parser.parse_args()
 
@@ -188,7 +288,7 @@ def main() -> int:
         with concurrent.futures.ThreadPoolExecutor(max_workers=jobs) as executor:
             for module in modules:
                 xml_file = tmp_path / f"{module}.xml"
-                future = executor.submit(run_module, args.build_dir, module, xml_file)
+                future = executor.submit(run_module, args.build_dir, module, xml_file, args.mode)
                 futures[future] = module
 
             for future in concurrent.futures.as_completed(futures):
@@ -216,7 +316,7 @@ def main() -> int:
         for result in module_errors:
             print(f"- {result.module}: {result.command_error}")
             if result.raw_output.strip():
-                print(textwrap.indent(shorten(result.raw_output.strip()), "  "))
+                print(textwrap.indent(maybe_shorten(result.raw_output.strip(), args.full_detail), "  "))
 
     if failed_cases:
         print("\nFailed tests:")
@@ -235,7 +335,7 @@ def main() -> int:
                     print(f"    message: {case.failure_message}")
                 if case.failure_detail:
                     detail = re.sub(r"\n{3,}", "\n\n", case.failure_detail.strip())
-                    print(textwrap.indent(shorten(detail), "    "))
+                    print(textwrap.indent(maybe_shorten(detail, args.full_detail), "    "))
 
         return 1
 

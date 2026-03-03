@@ -7,6 +7,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_compile_options(-Wall -Wextra -Werror)
 
+option(LIBFTPP_ENABLE_UBSAN "Enable UndefinedBehaviorSanitizer" OFF)
+
+if(LIBFTPP_ENABLE_UBSAN)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+    add_link_options(-fsanitize=undefined -fno-omit-frame-pointer)
+  else()
+    message(WARNING "LIBFTPP_ENABLE_UBSAN is ON, but compiler does not support UBSan flags")
+  endif()
+endif()
+
 # ---- GoogleTest ----
 include(FetchContent)
 FetchContent_Declare(
@@ -16,6 +27,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()
+include(CTest)
+
+find_program(VALGRIND_EXECUTABLE valgrind)
+if(VALGRIND_EXECUTABLE)
+  set(MEMORYCHECK_COMMAND "${VALGRIND_EXECUTABLE}")
+  set(MEMORYCHECK_COMMAND_OPTIONS
+      "--trace-children=yes --leak-check=full --show-leak-kinds=all --track-origins=yes --error-exitcode=42")
+endif()
 
 # ---- Module libraries ----
 set(LIBFTPP_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)

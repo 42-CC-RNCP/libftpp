@@ -170,6 +170,15 @@ make <module>          # e.g. make network, make threading
 make tests
 make tests TEST_JOBS=8
 
+# Memory leak check (valgrind)
+make memcheck
+
+# Undefined behavior check (UBSan)
+make ubsan_tests
+
+# Run all checks in sequence
+make check_all
+
 # Run tests for a specific module
 make test_network
 make test_threading
@@ -187,6 +196,7 @@ make re                # fclean + all
 
 See make help for the full list of targets.
 Requires: CMake ≥ 3.20, GCC/Clang with C++20, Linux (epoll for EpollReactor).
+For `make memcheck`, install `valgrind` first.
 
 ---
 

@@ -21,6 +21,7 @@ TEST_TARGETS = \
 EXAMPLE_TARGETS = \
 	perlin_noise_visualization
 TEST_JOBS ?= $(shell nproc)
+UBSAN_BUILD_DIR = $(BUILD_DIR)/ubsan
 
 .PHONY: all
 all: $(LIB_PATH)
@@ -79,6 +80,53 @@ tests: cmake_configure
 		--jobs $(TEST_JOBS) \
 		$(TEST_TARGETS)
 
+.PHONY: memcheck
+memcheck: cmake_configure
+	@command -v valgrind >/dev/null 2>&1 || { \
+		echo "[error] valgrind not found. Install it first (e.g. sudo apt install valgrind)."; \
+		exit 1; \
+	}
+	@echo "[cmake] build all test targets"
+	@cmake --build $(BUILD_DIR) --target libftpp_tests -- -s >/tmp/libtpp-build-tests.log 2>&1 || { \
+		echo "[cmake] build failed, details:"; \
+		cat /tmp/libtpp-build-tests.log; \
+		exit 1; \
+	}
+	@echo "[ctest] valgrind memcheck (pretty output)"
+	@python3 scripts/run_tests_pretty.py \
+		--build-dir $(BUILD_DIR) \
+		--jobs $(TEST_JOBS) \
+		--full-detail \
+		--mode memcheck \
+		$(TEST_TARGETS)
+
+.PHONY: ubsan_tests
+ubsan_tests:
+	@echo "[cmake] configure UBSan build"
+	@cmake -B$(UBSAN_BUILD_DIR) -S . -DLIBFTPP_ENABLE_UBSAN=ON
+	@echo "[cmake] build all test targets (UBSan)"
+	@cmake --build $(UBSAN_BUILD_DIR) --target libftpp_tests -- -s
+	@echo "[ctest] run UBSan-enabled tests (pretty output)"
+	@python3 scripts/run_tests_pretty.py \
+		--build-dir $(UBSAN_BUILD_DIR) \
+		--jobs $(TEST_JOBS) \
+		$(TEST_TARGETS)
+
+.PHONY: check_all
+check_all:
+	@rc=0; \
+		echo "[check_all] ===== tests ====="; \
+		$(MAKE) tests TEST_JOBS=$(TEST_JOBS) || rc=1; \
+		echo "[check_all] ===== memcheck ====="; \
+		$(MAKE) memcheck TEST_JOBS=$(TEST_JOBS) || rc=1; \
+		echo "[check_all] ===== ubsan_tests ====="; \
+		$(MAKE) ubsan_tests TEST_JOBS=$(TEST_JOBS) || rc=1; \
+		if [ $$rc -ne 0 ]; then \
+			echo "[check_all] completed with failures"; \
+			exit $$rc; \
+		fi; \
+		echo "[check_all] all stages passed"
+
 .PHONY: examples
 examples: cmake_configure
 	@echo "[cmake] build example targets"
@@ -105,6 +153,9 @@ help:
 	@echo "Main targets:"
 	@echo "  all              - Configure (if needed), build modules, and pack $(NAME)"
 	@echo "  tests            - Build tests, run modules in parallel, show . / x progress"
+	@echo "  memcheck         - Build tests and run valgrind memcheck through ctest"
+	@echo "  ubsan_tests      - Configure UBSan build and run all tests"
+	@echo "  check_all        - Run tests, memcheck, and UBSan checks in sequence (continue on failure)"
 	@echo "  examples         - Build all example executables"
 	@echo "  clean            - Clean build artifacts inside $(BUILD_DIR)"
 	@echo "  fclean           - Remove $(BUILD_DIR) and compile_commands.json"
@@ -123,6 +174,9 @@ help:
 	@echo "  make examples            # build all examples"
 	@echo "  make perlin_noise_visualization"
 	@echo "  make tests TEST_JOBS=8  # run all tests with 8 parallel jobs"
+	@echo "  make memcheck           # valgrind memory leak checks"
+	@echo "  make ubsan_tests        # undefined behavior checks"
+	@echo "  make check_all          # tests + memcheck + UBSan"
 	@echo "  make threading           # build threading module"
 	@echo "  make test_threading      # build and run threading-related tests"
 	@echo "  make test_data_structures"
