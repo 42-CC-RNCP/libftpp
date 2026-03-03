@@ -38,3 +38,11 @@ build/
 .cache/
 compile_commands.json
 .clangd
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
