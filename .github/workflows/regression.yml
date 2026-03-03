@@ -16,11 +16,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure
-        run: cmake -S . -B build
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
 
-      - name: Build tests
-        run: cmake --build build --target libftpp_tests -j
-
-      - name: Run regression tests
-        run: ./scripts/run_regression.sh
+      - name: Run full checks
+        run: make check_all TEST_JOBS=2
