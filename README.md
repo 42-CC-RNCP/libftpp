@@ -202,19 +202,13 @@ For `make memcheck`, install `valgrind` first.
 
 ## Module Status
 
-| Module | Status |
-|---|---|
-| `data_structures` | ✅ stable |
-| `design_patterns` | ✅ stable |
-| `iostream` | ✅ stable |
-| `mathematics` | ✅ stable |
-| `threading` | ✅ stable |
-| `utils` | ✅ stable |
-| `network/core` | ✅ stable |
-| `network/contracts` | ✅ stable |
-| `network/impl/tcp` | ✅ stable |
-| `network/impl/reactor` | ✅ stable |
-| `network/components` | ✅ stable |
-| `network/impl/codec` | ✅ stable |
+| Module | Status | Syntax Note | ADR | Example | Test |
+|---|---|---|---|---|---|
+| `data_structures` | ✅ stable | 🚧 in progress | 📋 planned | ➖ | ✅ |
+| `design_patterns` | ✅ stable | 📋 planned | 📋 planned | ➖ | ✅ |
+| `iostream` | ✅ stable | 📋 planned | 📋 planned | ➖ | ✅ |
+| `mathematics` | ✅ stable | ➖ | ➖ | ✅ | ✅ |
+| `threading` | ✅ stable | 📋 planned | 📋 planned | ➖ | ✅ |
+| `network` | ✅ stable | 📋 planned | 📋 planned | 📋 planned | ✅ |
 
-`✅ stable` · `🚧 in progress` · `📋 planned`
+`✅ stable` · `🚧 in progress` · `📋 planned` · `➖ N/A`
