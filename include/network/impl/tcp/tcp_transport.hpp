@@ -23,10 +23,14 @@ public:
         }
 
         // set up sockaddr_in structure
-        struct sockaddr_in server_addr;
+        struct sockaddr_in server_addr{};
         server_addr.sin_family = AF_INET;
         server_addr.sin_port = htons(ep.port);
-        inet_pton(AF_INET, ep.ip.c_str(), &server_addr.sin_addr);
+
+        if (inet_pton(AF_INET, ep.ip.c_str(), &server_addr.sin_addr) <= 0) {
+            ::close(sockfd_);
+            throw std::runtime_error("Invalid address: " + ep.ip);
+        }
 
         // connect to server
         if (::connect(
