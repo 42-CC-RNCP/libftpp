@@ -147,9 +147,63 @@ MyClass e = makeObj();
 
 > The `noexcept` specifier in the move constructor indicates that the move constructor does not throw exceptions. So for the STL containers, if the move constructor is `noexcept`, they will prefer to use the move constructor over the copy constructor when resizing or rehashing.
 
-### Mental model
+#### `std::forward`
 
+Check the real case in `data_structure/pool`:
 
+```c++
+template <typename... TArgs> Object<TType> acquire(TArgs&&... args)
+{
+    if (available_.empty()) {
+        throw std::runtime_error("no object is available.");
+    }
+
+    It it = available_.back();
+    available_.pop_back();
+
+    try {
+        it->emplace(std::forward<TArgs>(args)...);
+    }
+    catch (...) {
+        *it = std::nullopt;
+        available_.push_back(it);
+        throw;
+    }
+
+    return Object<TType>(it, this);
+}
+
+// function called by the user
+std::string some_string = "hello";
+auto obj = pool.acquire(1, 2.0, std::move(some_string));
+```
+
+**The value which has name is an lvalue**, 
+input arguments will be inferred as rvalue references
+    - `TArgs` will be deduced as `int`, `double`, and `std::string`
+    - the type of `args` will be `int&&`, `double&&`, and `std::string&&` respectively.
+    - `arg` is the name of the parameter, so it is an lvalue, even if its type is an rvalue reference.
+With `std::forward`
+    - all the arguments will be perfectly forwarded to `emplace with move semantics
+Without `std::forward`
+    - all the arguments will be treated as lvalues, which will lead to copy semantics instead
+
+```c++
+// `T` during the inferencing will record:
+//   - caller passes an rvalue -> `T` indered as `int` -> std::forward<int> -> static_cast<int&&> -> move semantics
+template <typename T>
+void acquire(T&& arg) {
+    emplace(std::forward<T>(arg));
+}
+
+// Without std::forward, it will always be an lvalue, even if the caller passes an rvalue, which will lead to copy semantics instead of move semantics.
+template <typename T>
+void acquire(T&& arg) {
+    emplace(arg);
+}
+
+acquire(10); 
+```
 
 ### Trade-off and Trap
 
